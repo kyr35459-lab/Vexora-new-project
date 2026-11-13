@@ -1,0 +1,2691 @@
+<!DOCTYPE html>
+<html lang="id" class="dark">
+<head>
+  <meta charset="UTF-8" />
+  <meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=1.0, user-scalable=no" />
+  <title>VEXORA STUDIO AI — Autonomous AI Video Editor</title>
+  
+  <!-- Tailwind CSS -->
+  <script src="https://cdn.tailwindcss.com"></script>
+  
+  <!-- Google Fonts: Inter & Space Grotesk -->
+  <link rel="preconnect" href="https://fonts.googleapis.com">
+  <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+  <link href="https://fonts.googleapis.com/css2?family=Inter:wght@300;400;500;600;700;800&family=Space+Grotesk:wght@500;600;700&display=swap" rel="stylesheet">
+  
+  <!-- Lucide Icons -->
+  <script src="https://unpkg.com/lucide@latest"></script>
+
+  <!-- MP4 Muxer for native hardware-accelerated H.264 MP4 generation when WebCodecs is available -->
+  <script src="https://cdn.jsdelivr.net/npm/mp4-muxer@5.1.3/build/mp4-muxer.min.js"></script>
+
+  <script>
+    tailwind.config = {
+      darkMode: 'class',
+      theme: {
+        extend: {
+          fontFamily: {
+            sans: ['Inter', 'sans-serif'],
+            display: ['Space Grotesk', 'sans-serif'],
+          },
+          colors: {
+            void: '#07070B',
+            charcoal: '#0E0F17',
+            surface: '#151722',
+            neonPurple: '#8B5CF6',
+            electricBlue: '#3B82F6',
+            cyberCyan: '#06B6D4',
+          },
+          animation: {
+            'pulse-slow': 'pulse 4s cubic-bezier(0.4, 0, 0.6, 1) infinite',
+            'glow': 'glow 3s ease-in-out infinite alternate',
+          },
+          keyframes: {
+            glow: {
+              '0%': { boxShadow: '0 0 15px rgba(139, 92, 246, 0.25)' },
+              '100%': { boxShadow: '0 0 30px rgba(59, 130, 246, 0.5)' },
+            }
+          }
+        }
+      }
+    }
+  </script>
+
+  <style>
+    * {
+      box-sizing: border-box;
+      -webkit-tap-highlight-color: transparent;
+    }
+    body {
+      background-color: #07070B;
+      color: #F8FAFC;
+      font-family: 'Inter', sans-serif;
+      overflow-x: hidden;
+    }
+    .glass-panel {
+      background: rgba(21, 23, 34, 0.68);
+      backdrop-filter: blur(16px);
+      -webkit-backdrop-filter: blur(16px);
+      border: 1px solid rgba(255, 255, 255, 0.08);
+    }
+    .glass-card {
+      background: linear-gradient(145deg, rgba(25, 28, 42, 0.75), rgba(14, 15, 23, 0.85));
+      backdrop-filter: blur(12px);
+      border: 1px solid rgba(139, 92, 246, 0.18);
+    }
+    .gradient-text {
+      background: linear-gradient(135deg, #A78BFA 0%, #38BDF8 50%, #818CF8 100%);
+      -webkit-background-clip: text;
+      -webkit-text-fill-color: transparent;
+    }
+    .btn-primary {
+      background: linear-gradient(135deg, #7C3AED 0%, #2563EB 100%);
+      box-shadow: 0 4px 20px rgba(124, 58, 237, 0.35);
+      transition: all 0.2s cubic-bezier(0.4, 0, 0.2, 1);
+    }
+    .btn-primary:hover:not(:disabled) {
+      transform: translateY(-1px);
+      box-shadow: 0 6px 28px rgba(59, 130, 246, 0.55);
+    }
+    .btn-primary:active:not(:disabled) {
+      transform: scale(0.98);
+    }
+    .btn-primary:disabled {
+      opacity: 0.45;
+      cursor: not-allowed;
+    }
+    /* Custom scrollbar */
+    ::-webkit-scrollbar {
+      width: 6px;
+      height: 6px;
+    }
+    ::-webkit-scrollbar-track {
+      background: #07070B;
+    }
+    ::-webkit-scrollbar-thumb {
+      background: #272A3D;
+      border-radius: 9999px;
+    }
+    ::-webkit-scrollbar-thumb:hover {
+      background: #8B5CF6;
+    }
+    input[type="range"] {
+      accent-color: #8B5CF6;
+    }
+    .drag-over {
+      border-color: #38BDF8 !important;
+      background: rgba(56, 189, 248, 0.12) !important;
+      transform: scale(1.02);
+    }
+  </style>
+</head>
+<body class="min-h-screen flex flex-col selection:bg-purple-500/30 selection:text-purple-200">
+
+  <!-- Ambient Background Glows -->
+  <div class="fixed inset-0 pointer-events-none z-0 overflow-hidden">
+    <div class="absolute -top-32 -left-32 w-96 h-96 bg-purple-600/15 rounded-full blur-[120px]"></div>
+    <div class="absolute top-1/3 -right-32 w-96 h-96 bg-blue-600/15 rounded-full blur-[120px]"></div>
+    <div class="absolute bottom-0 left-1/4 w-96 h-96 bg-cyan-600/10 rounded-full blur-[130px]"></div>
+  </div>
+
+  <!-- Top Navigation Header -->
+  <header class="sticky top-0 z-40 glass-panel border-b border-white/10">
+    <div class="max-w-7xl mx-auto px-4 sm:px-6 h-16 flex items-center justify-between">
+      <!-- Brand Logo -->
+      <div class="flex items-center gap-3 cursor-pointer" onclick="navigateTo('home')">
+        <div class="w-9 h-9 rounded-xl bg-gradient-to-br from-purple-600 to-blue-500 flex items-center justify-center shadow-lg shadow-purple-500/30">
+          <i data-lucide="film" class="w-5 h-5 text-white"></i>
+        </div>
+        <div>
+          <span class="font-display font-bold text-lg tracking-tight text-white">VEXORA</span>
+          <span class="ml-1 text-xs font-semibold px-1.5 py-0.5 rounded bg-purple-500/20 text-purple-300 border border-purple-500/30">STUDIO AI</span>
+        </div>
+      </div>
+
+      <!-- Desktop Navigation -->
+      <nav class="hidden lg:flex items-center gap-1 bg-void/60 p-1 rounded-xl border border-white/5">
+        <button onclick="navigateTo('home')" data-nav="home" class="nav-btn px-3.5 py-1.5 rounded-lg text-sm font-medium transition-all text-slate-300 hover:text-white">Home</button>
+        <button onclick="navigateTo('create')" data-nav="create" class="nav-btn px-3.5 py-1.5 rounded-lg text-sm font-medium transition-all bg-white/10 text-white">Create Video</button>
+        <button onclick="navigateTo('projects')" data-nav="projects" class="nav-btn px-3.5 py-1.5 rounded-lg text-sm font-medium transition-all text-slate-300 hover:text-white">My Projects</button>
+        <button onclick="navigateTo('templates')" data-nav="templates" class="nav-btn px-3.5 py-1.5 rounded-lg text-sm font-medium transition-all text-slate-300 hover:text-white">Templates</button>
+        <button onclick="navigateTo('settings')" data-nav="settings" class="nav-btn px-3.5 py-1.5 rounded-lg text-sm font-medium transition-all text-slate-300 hover:text-white">Settings</button>
+        <button onclick="navigateTo('profile')" data-nav="profile" class="nav-btn px-3.5 py-1.5 rounded-lg text-sm font-medium transition-all text-slate-300 hover:text-white">Profile</button>
+      </nav>
+
+      <!-- Right Action & Engine Badge -->
+      <div class="flex items-center gap-2.5">
+        <div id="codecBadge" class="hidden sm:flex items-center gap-1.5 px-2.5 py-1 rounded-full bg-emerald-500/10 border border-emerald-500/25 text-emerald-300 text-xs font-medium">
+          <span class="w-2 h-2 rounded-full bg-emerald-400 animate-pulse"></span>
+          <span id="codecBadgeText">MP4 H.264 Ready</span>
+        </div>
+        <button onclick="navigateTo('create')" class="btn-primary px-3.5 py-2 rounded-xl text-xs sm:text-sm font-semibold text-white flex items-center gap-1.5">
+          <i data-lucide="sparkles" class="w-4 h-4"></i>
+          <span>New Edit</span>
+        </button>
+      </div>
+    </div>
+  </header>
+
+  <!-- Main Content Area -->
+  <main class="relative z-10 flex-1 max-w-7xl w-full mx-auto px-4 sm:px-6 pt-6 pb-28 lg:pb-12">
+
+    <!-- ==================== VIEW: HOME ==================== -->
+    <section id="view-home" class="view-section hidden space-y-10">
+      <div class="glass-card rounded-3xl p-6 sm:p-12 text-center relative overflow-hidden">
+        <div class="inline-flex items-center gap-2 px-3 py-1 rounded-full bg-purple-500/15 border border-purple-500/30 text-purple-300 text-xs font-medium mb-5">
+          <i data-lucide="cpu" class="w-3.5 h-3.5"></i>
+          <span>Real-Time WebCodecs &amp; Beat-Sync Engine v2.6</span>
+        </div>
+        <h1 class="font-display text-3xl sm:text-5xl lg:text-6xl font-bold tracking-tight text-white max-w-4xl mx-auto leading-tight">
+          Turn Raw Photos &amp; Prompts into <span class="gradient-text">Viral Beat-Synced Videos</span>
+        </h1>
+        <p class="mt-4 text-slate-300 text-sm sm:text-base max-w-2xl mx-auto leading-relaxed">
+          Upload your photos, choose a track, and describe your vision. VEXORA STUDIO AI analyzes audio transients, maps camera shakes, RGB flashes, and velocity curves, and renders a real downloadable MP4 video directly on your device.
+        </p>
+        <div class="mt-8 flex flex-wrap items-center justify-center gap-4">
+          <button onclick="navigateTo('create')" class="btn-primary px-7 py-3.5 rounded-2xl font-semibold text-white flex items-center gap-2 text-sm sm:text-base">
+            <i data-lucide="wand-2" class="w-5 h-5"></i>
+            <span>Start Creating Video</span>
+          </button>
+          <button onclick="navigateTo('templates')" class="px-6 py-3.5 rounded-2xl font-semibold text-slate-200 bg-white/5 hover:bg-white/10 border border-white/10 transition text-sm sm:text-base flex items-center gap-2">
+            <i data-lucide="layout-grid" class="w-5 h-5 text-blue-400"></i>
+            <span>Explore AI Styles</span>
+          </button>
+        </div>
+
+        <!-- Feature Pills -->
+        <div class="mt-10 grid grid-cols-2 sm:grid-cols-4 gap-3 text-left">
+          <div class="p-4 rounded-2xl bg-void/60 border border-white/5">
+            <i data-lucide="activity" class="w-5 h-5 text-purple-400 mb-2"></i>
+            <div class="font-semibold text-sm text-white">Real Beat Detection</div>
+            <div class="text-xs text-slate-400 mt-0.5">Web Audio API energy peak onset sync</div>
+          </div>
+          <div class="p-4 rounded-2xl bg-void/60 border border-white/5">
+            <i data-lucide="zap" class="w-5 h-5 text-blue-400 mb-2"></i>
+            <div class="font-semibold text-sm text-white">Jedag Jedug &amp; Velocity</div>
+            <div class="text-xs text-slate-400 mt-0.5">Kinetic zoom, camera shake &amp; RGB split</div>
+          </div>
+          <div class="p-4 rounded-2xl bg-void/60 border border-white/5">
+            <i data-lucide="film" class="w-5 h-5 text-cyan-400 mb-2"></i>
+            <div class="font-semibold text-sm text-white">True MP4 Rendering</div>
+            <div class="text-xs text-slate-400 mt-0.5">Hardware H.264 / AAC encoding</div>
+          </div>
+          <div class="p-4 rounded-2xl bg-void/60 border border-white/5">
+            <i data-lucide="smartphone" class="w-5 h-5 text-emerald-400 mb-2"></i>
+            <div class="font-semibold text-sm text-white">Mobile-First Studio</div>
+            <div class="text-xs text-slate-400 mt-0.5">9:16 Reels/TikTok, 16:9 &amp; 1:1 ready</div>
+          </div>
+        </div>
+      </div>
+
+      <!-- Architecture & Deployment Guide Accordion for Developers -->
+      <div class="glass-panel rounded-2xl p-6">
+        <div class="flex items-center justify-between cursor-pointer" onclick="toggleDocs()">
+          <div class="flex items-center gap-3">
+            <div class="w-10 h-10 rounded-xl bg-blue-500/15 border border-blue-500/30 flex items-center justify-center text-blue-400">
+              <i data-lucide="terminal" class="w-5 h-5"></i>
+            </div>
+            <div>
+              <h3 class="font-display font-semibold text-white text-base">Architecture, Local Setup &amp; Vercel Deployment Guide</h3>
+              <p class="text-xs text-slate-400">Click to view project structure, running instructions, and deployment specs</p>
+            </div>
+          </div>
+          <i id="docsChevron" data-lucide="chevron-down" class="w-5 h-5 text-slate-400 transition-transform"></i>
+        </div>
+        <div id="docsContent" class="hidden mt-5 pt-5 border-t border-white/10 text-xs sm:text-sm text-slate-300 space-y-4">
+          <div class="grid md:grid-cols-2 gap-4">
+            <div class="bg-void/80 p-4 rounded-xl border border-white/5">
+              <div class="font-semibold text-purple-300 mb-2">1. Folder Structure (Single-File &amp; Next.js Ready)</div>
+              <pre class="text-xs text-slate-300 overflow-x-auto leading-relaxed">vexora-studio-ai/
+├── index.html          # Complete self-contained AI Video Studio
+├── vercel.json         # Optional COOP/COEP headers for WASM
+└── README.md           # Documentation</pre>
+            </div>
+            <div class="bg-void/80 p-4 rounded-xl border border-white/5">
+              <div class="font-semibold text-blue-300 mb-2">2. Run Locally &amp; Deploy to Vercel</div>
+              <pre class="text-xs text-slate-300 overflow-x-auto leading-relaxed"># Local preview (any static server)
+npx serve .
+
+# Deploy to Vercel CLI
+npm i -g vercel
+vercel --prod</pre>
+            </div>
+          </div>
+          <p class="text-xs text-slate-400">
+            <strong>Rendering Engine Note:</strong> VEXORA STUDIO AI uses hardware-accelerated <code class="text-purple-300">VideoEncoder</code> + <code class="text-purple-300">mp4-muxer</code> (H.264 / AAC in true <code class="text-cyan-300">.mp4</code> container) with an automatic <code class="text-blue-300">MediaRecorder</code> fallback for older mobile browsers—requiring zero external server latency and guaranteeing 100% real downloadable video files.
+          </p>
+        </div>
+      </div>
+    </section>
+
+    <!-- ==================== VIEW: CREATE VIDEO (MAIN STUDIO) ==================== -->
+    <section id="view-create" class="view-section space-y-6">
+      
+      <!-- Top Studio Header Bar -->
+      <div class="flex flex-col sm:flex-row sm:items-center justify-between gap-4 glass-panel p-4 sm:p-5 rounded-2xl">
+        <div>
+          <div class="flex items-center gap-2">
+            <h1 class="font-display text-xl sm:text-2xl font-bold text-white">AI Video Studio</h1>
+            <span class="px-2 py-0.5 text-[11px] font-semibold rounded-md bg-blue-500/20 text-blue-300 border border-blue-500/30">REAL RENDER ENGINE</span>
+          </div>
+          <p class="text-xs sm:text-sm text-slate-400 mt-0.5">Configure photos, prompt, beat-sync audio, and render true MP4 video.</p>
+        </div>
+        <div class="flex flex-wrap items-center gap-2">
+          <button onclick="saveCurrentProject()" class="px-3.5 py-2.5 rounded-xl bg-white/5 hover:bg-white/10 border border-white/10 text-xs sm:text-sm font-medium text-slate-200 flex items-center gap-1.5 transition">
+            <i data-lucide="save" class="w-4 h-4 text-purple-400"></i>
+            <span>Save Project</span>
+          </button>
+          <button onclick="loadDemoSample()" class="px-3.5 py-2.5 rounded-xl bg-purple-500/15 hover:bg-purple-500/25 border border-purple-500/30 text-xs sm:text-sm font-medium text-purple-200 flex items-center gap-1.5 transition">
+            <i data-lucide="sparkles" class="w-4 h-4"></i>
+            <span>Load Demo Kit</span>
+          </button>
+        </div>
+      </div>
+
+      <!-- Main 2-Column Studio Grid -->
+      <div class="grid grid-cols-1 lg:grid-cols-12 gap-6 items-start">
+        
+        <!-- LEFT COLUMN (7 cols): Inputs, Photos, Prompt, Style, Audio -->
+        <div class="lg:col-span-7 space-y-6">
+
+          <!-- STEP 1: DYNAMIC PHOTO UPLOAD SYSTEM -->
+          <div class="glass-panel rounded-2xl p-5 sm:p-6 space-y-4">
+            <div class="flex flex-wrap items-center justify-between gap-3">
+              <div class="flex items-center gap-2.5">
+                <span class="w-7 h-7 rounded-lg bg-purple-600/30 border border-purple-500/40 text-purple-300 font-display font-bold text-sm flex items-center justify-center">1</span>
+                <div>
+                  <h2 class="font-display font-semibold text-base sm:text-lg text-white">Photo Sequence Manager</h2>
+                  <p class="text-xs text-slate-400">Supports JPG, PNG, WEBP • Drag &amp; drop slots to reorder</p>
+                </div>
+              </div>
+
+              <!-- Dynamic Slot Counter Control -->
+              <div class="flex items-center gap-2 bg-void/80 px-3 py-1.5 rounded-xl border border-white/10">
+                <label for="slotCountInput" class="text-xs text-slate-300 font-medium">Total Photos:</label>
+                <button onclick="changeSlotCount(-1)" class="w-7 h-7 rounded-lg bg-white/5 hover:bg-white/15 flex items-center justify-center text-white font-bold">-</button>
+                <input id="slotCountInput" type="number" min="2" max="20" value="5" onchange="setSlotCount(this.value)" class="w-11 text-center bg-transparent text-sm font-bold text-purple-300 focus:outline-none" />
+                <button onclick="changeSlotCount(1)" class="w-7 h-7 rounded-lg bg-white/5 hover:bg-white/15 flex items-center justify-center text-white font-bold">+</button>
+              </div>
+            </div>
+
+            <!-- Action Toolbar & Upload Progress -->
+            <div class="flex flex-wrap items-center justify-between gap-2 pt-1">
+              <div class="flex items-center gap-2">
+                <span id="photoCounterBadge" class="px-3 py-1 rounded-full text-xs font-semibold bg-amber-500/15 text-amber-300 border border-amber-500/30">
+                  0 / 5 Photos Uploaded
+                </span>
+              </div>
+              <div class="flex flex-wrap items-center gap-2">
+                <button onclick="triggerBatchUpload()" class="px-3 py-2 rounded-xl bg-blue-600/20 hover:bg-blue-600/30 border border-blue-500/30 text-blue-300 text-xs font-semibold flex items-center gap-1.5 transition">
+                  <i data-lucide="image-plus" class="w-3.5 h-3.5"></i>
+                  <span>Add Photos</span>
+                </button>
+                <button onclick="clearAllPhotos()" class="px-3 py-2 rounded-xl bg-rose-500/15 hover:bg-rose-500/25 border border-rose-500/30 text-rose-300 text-xs font-semibold flex items-center gap-1.5 transition">
+                  <i data-lucide="trash-2" class="w-3.5 h-3.5"></i>
+                  <span>Clear All</span>
+                </button>
+              </div>
+            </div>
+
+            <!-- Hidden File Inputs -->
+            <input type="file" id="batchFileInput" accept="image/jpeg,image/jpg,image/png,image/webp" multiple class="hidden" onchange="handleBatchFiles(event)" />
+            <input type="file" id="singleSlotFileInput" accept="image/jpeg,image/jpg,image/png,image/webp" class="hidden" onchange="handleSingleSlotFile(event)" />
+
+            <!-- Dynamic Photo Grid -->
+            <div id="photoSlotsGrid" class="grid grid-cols-2 sm:grid-cols-3 md:grid-cols-4 gap-3 pt-1">
+              <!-- Rendered dynamically by JS -->
+            </div>
+
+            <!-- Validation Warning Box -->
+            <div id="photoValidationBanner" class="flex items-center gap-2.5 p-3 rounded-xl bg-amber-500/10 border border-amber-500/25 text-amber-200 text-xs">
+              <i data-lucide="alert-triangle" class="w-4 h-4 text-amber-400 shrink-0"></i>
+              <span id="photoValidationText">Please upload all 5 required photos before generating your video.</span>
+            </div>
+          </div>
+
+          <!-- STEP 2: PROMPT TO VIDEO ENGINE & VIDEO STYLE -->
+          <div class="glass-panel rounded-2xl p-5 sm:p-6 space-y-5">
+            <div class="flex items-center justify-between gap-2">
+              <div class="flex items-center gap-2.5">
+                <span class="w-7 h-7 rounded-lg bg-blue-600/30 border border-blue-500/40 text-blue-300 font-display font-bold text-sm flex items-center justify-center">2</span>
+                <div>
+                  <h2 class="font-display font-semibold text-base sm:text-lg text-white">AI Prompt-to-Video Engine</h2>
+                  <p class="text-xs text-slate-400">Describe pacing, transitions, shake, flash, color grading &amp; overlays</p>
+                </div>
+              </div>
+              <button onclick="parsePromptAndSyncUI(true)" class="px-3 py-1.5 rounded-xl bg-purple-600/25 hover:bg-purple-600/40 border border-purple-500/40 text-purple-200 text-xs font-semibold flex items-center gap-1.5 transition">
+                <i data-lucide="cpu" class="w-3.5 h-3.5"></i>
+                <span>Analyze Prompt</span>
+              </button>
+            </div>
+
+            <!-- Large Prompt Textarea -->
+            <div>
+              <textarea id="videoPromptInput" rows="3" oninput="onPromptTyped()" placeholder="Describe your edit..." class="w-full rounded-xl bg-void/90 border border-white/10 focus:border-purple-500 p-3.5 text-sm text-white placeholder-slate-500 focus:outline-none leading-relaxed">Create a 15-second aggressive Indonesian jedag-jedug edit with velocity transitions, beat sync, smooth zoom, camera shake, RGB flash, cinematic color grading and professional transitions. Use all uploaded photos in the correct order.</textarea>
+              
+              <!-- Quick Prompt Chips -->
+              <div class="flex flex-wrap gap-1.5 mt-2">
+                <button onclick="applyQuickPrompt('jedag')" class="text-[11px] px-2.5 py-1 rounded-lg bg-white/5 hover:bg-purple-500/20 text-slate-300 hover:text-purple-200 border border-white/5 transition">⚡ Indo Jedag Jedug</button>
+                <button onclick="applyQuickPrompt('velocity')" class="text-[11px] px-2.5 py-1 rounded-lg bg-white/5 hover:bg-blue-500/20 text-slate-300 hover:text-blue-200 border border-white/5 transition">🚀 Velocity TikTok</button>
+                <button onclick="applyQuickPrompt('cinematic')" class="text-[11px] px-2.5 py-1 rounded-lg bg-white/5 hover:bg-cyan-500/20 text-slate-300 hover:text-cyan-200 border border-white/5 transition">🎬 Epic Cinematic</button>
+                <button onclick="applyQuickPrompt('anime')" class="text-[11px] px-2.5 py-1 rounded-lg bg-white/5 hover:bg-pink-500/20 text-slate-300 hover:text-pink-200 border border-white/5 transition">🔥 Anime AMV Glitch</button>
+              </div>
+            </div>
+
+            <!-- Live AI Parsed Engine Parameters Readout -->
+            <div class="p-3.5 rounded-xl bg-void/75 border border-purple-500/20 space-y-2">
+              <div class="flex items-center justify-between">
+                <span class="text-[11px] font-semibold uppercase tracking-wider text-purple-300 flex items-center gap-1.5">
+                  <i data-lucide="sliders" class="w-3.5 h-3.5"></i> Active Render Parameters (Compiled from Prompt)
+                </span>
+                <span id="detectedStyleTag" class="text-[11px] font-bold px-2 py-0.5 rounded bg-purple-500/20 text-purple-200">Jedag Jedug</span>
+              </div>
+              <div id="compiledTagsContainer" class="flex flex-wrap gap-1.5">
+                <!-- Dynamically populated badges showing active render effects -->
+              </div>
+            </div>
+
+            <!-- Video Style Selector Grid (11 Styles) -->
+            <div>
+              <label class="block text-xs font-semibold text-slate-300 mb-2">Video Editing Style Preset</label>
+              <div id="styleSelectorGrid" class="grid grid-cols-2 sm:grid-cols-3 gap-2">
+                <!-- Populated by JS -->
+              </div>
+            </div>
+
+            <!-- Fine-Tune Editing Parameters -->
+            <div class="pt-2 border-t border-white/10 space-y-4">
+              <div class="grid grid-cols-1 sm:grid-cols-3 gap-3">
+                <!-- Aspect Ratio -->
+                <div>
+                  <label class="block text-xs font-medium text-slate-400 mb-1">Aspect Ratio</label>
+                  <select id="aspectRatioSelect" onchange="updateConfigFromInputs()" class="w-full rounded-xl bg-void border border-white/10 px-3 py-2.5 text-xs sm:text-sm text-white focus:border-purple-500 focus:outline-none">
+                    <option value="9:16">9:16 (TikTok / Reels / Shorts)</option>
+                    <option value="16:9">16:9 (YouTube Landscape)</option>
+                    <option value="1:1">1:1 (Instagram Square)</option>
+                  </select>
+                </div>
+
+                <!-- Duration -->
+                <div>
+                  <label class="block text-xs font-medium text-slate-400 mb-1">Duration (Seconds)</label>
+                  <input id="durationInput" type="number" min="3" max="60" value="15" onchange="updateConfigFromInputs()" class="w-full rounded-xl bg-void border border-white/10 px-3 py-2.5 text-xs sm:text-sm text-white focus:border-purple-500 focus:outline-none" />
+                </div>
+
+                <!-- Color Grading -->
+                <div>
+                  <label class="block text-xs font-medium text-slate-400 mb-1">Color Grading LUT</label>
+                  <select id="colorGradeSelect" onchange="updateConfigFromInputs()" class="w-full rounded-xl bg-void border border-white/10 px-3 py-2.5 text-xs sm:text-sm text-white focus:border-purple-500 focus:outline-none">
+                    <option value="cinematic">Cinematic Teal &amp; Orange</option>
+                    <option value="cyberpunk">Cyberpunk Neon Purple</option>
+                    <option value="vibrant">High-Contrast Punchy</option>
+                    <option value="moody">Dark Moody Contrast</option>
+                    <option value="warm">Golden Hour Warm</option>
+                    <option value="none">Natural / Original</option>
+                  </select>
+                </div>
+              </div>
+
+              <!-- Text Overlay Input -->
+              <div class="grid grid-cols-1 sm:grid-cols-2 gap-3">
+                <div>
+                  <label class="block text-xs font-medium text-slate-400 mb-1">Title / Watermark Text Overlay (Optional)</label>
+                  <input id="textOverlayInput" type="text" placeholder="e.g. VEXORA EDIT • 2026" oninput="updateConfigFromInputs()" class="w-full rounded-xl bg-void border border-white/10 px-3 py-2 text-xs sm:text-sm text-white placeholder-slate-600 focus:border-purple-500 focus:outline-none" />
+                </div>
+                <div>
+                  <label class="block text-xs font-medium text-slate-400 mb-1">Frame Rate (FPS)</label>
+                  <select id="fpsSelect" onchange="updateConfigFromInputs()" class="w-full rounded-xl bg-void border border-white/10 px-3 py-2 text-xs sm:text-sm text-white focus:border-purple-500 focus:outline-none">
+                    <option value="30" selected>30 FPS (Balanced &amp; Fast Mobile)</option>
+                    <option value="60">60 FPS (Ultra Smooth Velocity)</option>
+                  </select>
+                </div>
+              </div>
+
+              <!-- Effect Intensity Sliders & Toggles -->
+              <div class="grid grid-cols-2 sm:grid-cols-4 gap-2.5 pt-1">
+                <label class="flex items-center gap-2 p-2.5 rounded-xl bg-void/70 border border-white/5 cursor-pointer select-none">
+                  <input type="checkbox" id="fxBeatSync" checked onchange="updateConfigFromInputs()" class="rounded text-purple-500" />
+                  <span class="text-xs text-slate-200">Beat Sync</span>
+                </label>
+                <label class="flex items-center gap-2 p-2.5 rounded-xl bg-void/70 border border-white/5 cursor-pointer select-none">
+                  <input type="checkbox" id="fxShake" checked onchange="updateConfigFromInputs()" class="rounded text-purple-500" />
+                  <span class="text-xs text-slate-200">Camera Shake</span>
+                </label>
+                <label class="flex items-center gap-2 p-2.5 rounded-xl bg-void/70 border border-white/5 cursor-pointer select-none">
+                  <input type="checkbox" id="fxFlash" checked onchange="updateConfigFromInputs()" class="rounded text-purple-500" />
+                  <span class="text-xs text-slate-200">Beat Flash</span>
+                </label>
+                <label class="flex items-center gap-2 p-2.5 rounded-xl bg-void/70 border border-white/5 cursor-pointer select-none">
+                  <input type="checkbox" id="fxRgb" checked onchange="updateConfigFromInputs()" class="rounded text-purple-500" />
+                  <span class="text-xs text-slate-200">RGB Split</span>
+                </label>
+                <label class="flex items-center gap-2 p-2.5 rounded-xl bg-void/70 border border-white/5 cursor-pointer select-none">
+                  <input type="checkbox" id="fxZoom" checked onchange="updateConfigFromInputs()" class="rounded text-purple-500" />
+                  <span class="text-xs text-slate-200">Dynamic Zoom</span>
+                </label>
+                <label class="flex items-center gap-2 p-2.5 rounded-xl bg-void/70 border border-white/5 cursor-pointer select-none">
+                  <input type="checkbox" id="fxVelocity" checked onchange="updateConfigFromInputs()" class="rounded text-purple-500" />
+                  <span class="text-xs text-slate-200">Velocity Curve</span>
+                </label>
+                <label class="flex items-center gap-2 p-2.5 rounded-xl bg-void/70 border border-white/5 cursor-pointer select-none">
+                  <input type="checkbox" id="fxBlur" checked onchange="updateConfigFromInputs()" class="rounded text-purple-500" />
+                  <span class="text-xs text-slate-200">Motion Blur</span>
+                </label>
+                <label class="flex items-center gap-2 p-2.5 rounded-xl bg-void/70 border border-white/5 cursor-pointer select-none">
+                  <input type="checkbox" id="fx3dTilt" onchange="updateConfigFromInputs()" class="rounded text-purple-500" />
+                  <span class="text-xs text-slate-200">3D Photo Tilt</span>
+                </label>
+              </div>
+            </div>
+          </div>
+
+          <!-- STEP 3: MUSIC & BEAT SYNCHRONIZATION SYSTEM -->
+          <div class="glass-panel rounded-2xl p-5 sm:p-6 space-y-4">
+            <div class="flex flex-wrap items-center justify-between gap-2">
+              <div class="flex items-center gap-2.5">
+                <span class="w-7 h-7 rounded-lg bg-cyan-600/30 border border-cyan-500/40 text-cyan-300 font-display font-bold text-sm flex items-center justify-center">3</span>
+                <div>
+                  <h2 class="font-display font-semibold text-base sm:text-lg text-white">Audio &amp; Beat-Sync Engine</h2>
+                  <p class="text-xs text-slate-400">Upload MP3/WAV or generate a built-in Phonk/Jedag-Jedug synth beat</p>
+                </div>
+              </div>
+              <div class="flex items-center gap-2">
+                <button onclick="generateBuiltInBeatTrack()" class="px-3 py-1.5 rounded-xl bg-cyan-500/15 hover:bg-cyan-500/25 border border-cyan-500/30 text-cyan-200 text-xs font-semibold flex items-center gap-1.5 transition">
+                  <i data-lucide="music" class="w-3.5 h-3.5"></i>
+                  <span>Built-In Bass Beat</span>
+                </button>
+                <button onclick="document.getElementById('audioFileInput').click()" class="px-3 py-1.5 rounded-xl bg-purple-600/25 hover:bg-purple-600/40 border border-purple-500/40 text-purple-200 text-xs font-semibold flex items-center gap-1.5 transition">
+                  <i data-lucide="upload" class="w-3.5 h-3.5"></i>
+                  <span>Upload Audio</span>
+                </button>
+              </div>
+            </div>
+
+            <input type="file" id="audioFileInput" accept="audio/mp3,audio/mpeg,audio/wav,audio/ogg,audio/aac,audio/*" class="hidden" onchange="handleAudioUpload(event)" />
+
+            <!-- Audio Status & Controls Card -->
+            <div id="audioControlCard" class="p-4 rounded-xl bg-void/80 border border-white/10 space-y-3">
+              <div class="flex items-center justify-between gap-3">
+                <div class="flex items-center gap-3 min-w-0">
+                  <button id="audioPreviewPlayBtn" onclick="toggleAudioPreview()" disabled class="w-10 h-10 rounded-xl bg-purple-600/30 disabled:opacity-40 text-purple-200 flex items-center justify-center shrink-0 hover:bg-purple-600/50 transition">
+                    <i id="audioPreviewIcon" data-lucide="play" class="w-4 h-4"></i>
+                  </button>
+                  <div class="min-w-0">
+                    <div id="audioTrackName" class="text-sm font-semibold text-white truncate">No audio track selected (Silent video allowed)</div>
+                    <div id="audioTrackMeta" class="text-xs text-slate-400">Upload MP3/WAV or click "Built-In Bass Beat" for auto-beat sync</div>
+                  </div>
+                </div>
+                <button id="removeAudioBtn" onclick="removeAudioTrack()" class="hidden p-2 rounded-lg text-slate-400 hover:text-rose-400 hover:bg-rose-500/10 transition" title="Remove audio">
+                  <i data-lucide="x" class="w-4 h-4"></i>
+                </button>
+              </div>
+
+              <!-- Waveform / Beat Markers Canvas -->
+              <div class="relative h-14 w-full rounded-lg bg-charcoal border border-white/5 overflow-hidden">
+                <canvas id="waveformCanvas" class="w-full h-full block"></canvas>
+                <div id="beatCountBadge" class="hidden absolute top-1.5 right-2 px-2 py-0.5 rounded bg-purple-600/80 text-[10px] font-bold text-white">0 Beats Detected</div>
+              </div>
+
+              <!-- Audio Trim, Volume & Fade Controls -->
+              <div class="grid grid-cols-1 sm:grid-cols-3 gap-3 pt-1">
+                <div>
+                  <div class="flex justify-between text-xs text-slate-400 mb-1">
+                    <span>Start Offset (Trim)</span>
+                    <span id="audioStartVal" class="text-slate-200 font-medium">0.0s</span>
+                  </div>
+                  <input id="audioStartSlider" type="range" min="0" max="60" step="0.5" value="0" oninput="updateAudioSettings()" class="w-full" />
+                </div>
+                <div>
+                  <div class="flex justify-between text-xs text-slate-400 mb-1">
+                    <span>Master Volume</span>
+                    <span id="audioVolVal" class="text-slate-200 font-medium">100%</span>
+                  </div>
+                  <input id="audioVolSlider" type="range" min="0" max="150" step="5" value="100" oninput="updateAudioSettings()" class="w-full" />
+                </div>
+                <div class="flex items-center justify-between gap-2 pt-2 sm:pt-4">
+                  <label class="flex items-center gap-1.5 text-xs text-slate-300 cursor-pointer">
+                    <input id="audioFadeIn" type="checkbox" checked onchange="updateAudioSettings()" />
+                    <span>Fade In</span>
+                  </label>
+                  <label class="flex items-center gap-1.5 text-xs text-slate-300 cursor-pointer">
+                    <input id="audioFadeOut" type="checkbox" checked onchange="updateAudioSettings()" />
+                    <span>Fade Out</span>
+                  </label>
+                </div>
+              </div>
+            </div>
+          </div>
+
+        </div>
+
+        <!-- RIGHT COLUMN (5 cols): Live Preview Monitor, Render Engine & Export -->
+        <div class="lg:col-span-5 lg:sticky lg:top-20 space-y-5">
+          
+          <!-- Monitor Panel -->
+          <div class="glass-card rounded-2xl p-4 sm:p-5 space-y-4">
+            <div class="flex items-center justify-between">
+              <div class="flex items-center gap-2">
+                <span class="w-2.5 h-2.5 rounded-full bg-purple-500 animate-ping"></span>
+                <h3 class="font-display font-semibold text-sm sm:text-base text-white" id="monitorTitle">Live Studio Preview</h3>
+              </div>
+              <span id="resolutionBadge" class="text-[11px] font-mono px-2 py-0.5 rounded bg-white/5 text-slate-300 border border-white/10">720×1280 • 30fps</span>
+            </div>
+
+            <!-- Aspect Ratio Stage Container -->
+            <div id="previewStageWrapper" class="relative w-full bg-void rounded-xl border border-white/10 overflow-hidden flex items-center justify-center min-h-[340px] sm:min-h-[400px]">
+              
+              <!-- Real-time Canvas Preview (Before rendering) -->
+              <canvas id="livePreviewCanvas" class="max-w-full max-h-[440px] rounded-lg shadow-2xl object-contain"></canvas>
+
+              <!-- Rendered Final Video Player (Shown after render completes) -->
+              <video id="finalVideoPlayer" class="hidden max-w-full max-h-[440px] rounded-lg shadow-2xl bg-black" playsinline></video>
+
+              <!-- Live Preview Overlay Play Button -->
+              <button id="livePreviewToggleBtn" onclick="toggleLiveCanvasPlayback()" class="absolute bottom-3 left-3 px-3 py-1.5 rounded-xl bg-black/70 hover:bg-black/90 backdrop-blur border border-white/15 text-xs font-medium text-white flex items-center gap-1.5 transition">
+                <i id="livePreviewIcon" data-lucide="pause" class="w-3.5 h-3.5 text-purple-400"></i>
+                <span id="livePreviewBtnText">Pause Live Preview</span>
+              </button>
+
+              <!-- Switch Back to Live Editor Preview if viewing rendered video -->
+              <button id="backToLiveBtn" onclick="switchMonitorMode('live')" class="hidden absolute top-3 right-3 px-3 py-1.5 rounded-xl bg-black/75 hover:bg-black text-xs font-medium text-slate-200 border border-white/15 transition">
+                Back to Live Editor
+              </button>
+            </div>
+
+            <!-- Custom Video Player Controls (Active when Final Rendered Video is loaded) -->
+            <div id="finalVideoControls" class="hidden p-3 rounded-xl bg-void/90 border border-white/10 space-y-2.5">
+              <div class="flex items-center gap-2">
+                <span id="videoCurrentTime" class="text-[11px] font-mono text-slate-400 w-10">00:00</span>
+                <input id="videoTimelineSlider" type="range" min="0" max="100" value="0" step="0.1" oninput="seekFinalVideo(this.value)" class="flex-1 h-1.5 cursor-pointer" />
+                <span id="videoTotalTime" class="text-[11px] font-mono text-slate-400 w-10 text-right">00:15</span>
+              </div>
+              <div class="flex items-center justify-between">
+                <div class="flex items-center gap-2">
+                  <button onclick="toggleFinalVideoPlay()" class="p-2 rounded-lg bg-purple-600/30 hover:bg-purple-600/50 text-white transition">
+                    <i id="finalPlayIcon" data-lucide="play" class="w-4 h-4"></i>
+                  </button>
+                  <button onclick="toggleFinalVideoMute()" class="p-2 rounded-lg bg-white/5 hover:bg-white/10 text-slate-300 transition">
+                    <i id="finalMuteIcon" data-lucide="volume-2" class="w-4 h-4"></i>
+                  </button>
+                  <input id="finalVolumeSlider" type="range" min="0" max="1" step="0.05" value="1" oninput="changeFinalVideoVolume(this.value)" class="w-16 sm:w-20" />
+                </div>
+                <div class="flex items-center gap-2">
+                  <span id="renderedFileSizeBadge" class="text-[11px] font-mono text-emerald-400">0.0 MB</span>
+                  <button onclick="fullscreenFinalVideo()" class="p-2 rounded-lg bg-white/5 hover:bg-white/10 text-slate-300 transition" title="Fullscreen">
+                    <i data-lucide="maximize" class="w-4 h-4"></i>
+                  </button>
+                </div>
+              </div>
+            </div>
+
+            <!-- Rendering Progress Panel (Shown during actual frame encoding) -->
+            <div id="renderProgressPanel" class="hidden p-4 rounded-xl bg-void/95 border border-purple-500/40 space-y-2.5">
+              <div class="flex items-center justify-between text-xs">
+                <span id="renderStatusLabel" class="font-semibold text-purple-300 flex items-center gap-2">
+                  <span class="w-2 h-2 rounded-full bg-purple-400 animate-ping"></span>
+                  Initializing Encoder...
+                </span>
+                <span id="renderPercentText" class="font-mono font-bold text-white">0%</span>
+              </div>
+              <div class="w-full h-2.5 bg-charcoal rounded-full overflow-hidden border border-white/5">
+                <div id="renderProgressBar" class="h-full bg-gradient-to-r from-purple-500 via-blue-500 to-cyan-400 transition-all duration-150" style="width: 0%"></div>
+              </div>
+              <div class="flex items-center justify-between text-[11px] text-slate-400">
+                <span id="renderFrameDetail">Frame 0 / 0</span>
+                <span id="renderEtaText">Estimating time...</span>
+              </div>
+            </div>
+
+            <!-- Render Error Alert Box -->
+            <div id="renderErrorPanel" class="hidden p-4 rounded-xl bg-rose-500/15 border border-rose-500/40 space-y-2">
+              <div class="flex items-start gap-2.5">
+                <i data-lucide="alert-octagon" class="w-5 h-5 text-rose-400 shrink-0 mt-0.5"></i>
+                <div class="space-y-1">
+                  <div class="text-xs font-bold text-rose-200">Rendering Interrupted</div>
+                  <p id="renderErrorText" class="text-xs text-rose-300/90 leading-relaxed"></p>
+                </div>
+              </div>
+              <button onclick="startRealVideoRender()" class="w-full py-2 rounded-lg bg-rose-600 hover:bg-rose-500 text-white text-xs font-semibold transition">
+                Retry Video Rendering
+              </button>
+            </div>
+
+            <!-- PRIMARY GENERATE & DOWNLOAD BUTTONS -->
+            <div class="space-y-2.5 pt-1">
+              <button id="generateVideoBtn" onclick="startRealVideoRender()" disabled class="w-full btn-primary py-4 rounded-2xl font-display font-bold text-base text-white flex items-center justify-center gap-2.5">
+                <i data-lucide="clapperboard" class="w-5 h-5"></i>
+                <span id="generateBtnText">Upload Photos to Generate Video</span>
+              </button>
+
+              <!-- Real MP4 Download Button (Revealed after render completes) -->
+              <a id="downloadVideoBtn" href="#" download="VEXORA_STUDIO_AI_EDIT.mp4" class="hidden w-full py-3.5 rounded-2xl bg-emerald-600 hover:bg-emerald-500 shadow-lg shadow-emerald-600/30 font-display font-bold text-sm sm:text-base text-white flex items-center justify-center gap-2 transition">
+                <i data-lucide="download" class="w-5 h-5"></i>
+                <span id="downloadBtnLabel">Download Rendered Video (.MP4)</span>
+              </a>
+            </div>
+          </div>
+
+        </div>
+      </div>
+    </section>
+
+    <!-- ==================== VIEW: MY PROJECTS ==================== -->
+    <section id="view-projects" class="view-section hidden space-y-6">
+      <div class="glass-panel p-6 rounded-2xl flex flex-col sm:flex-row sm:items-center justify-between gap-4">
+        <div>
+          <h1 class="font-display text-2xl font-bold text-white">My Saved Projects</h1>
+          <p class="text-xs sm:text-sm text-slate-400 mt-1">
+            Prompts and editing configurations are saved persistently in your browser storage. Note: Binary video files are held in active session memory and should be downloaded as MP4 after rendering.
+          </p>
+        </div>
+        <button onclick="navigateTo('create')" class="btn-primary px-4 py-2.5 rounded-xl text-sm font-semibold text-white flex items-center gap-2 self-start">
+          <i data-lucide="plus" class="w-4 h-4"></i>
+          <span>Create New Project</span>
+        </button>
+      </div>
+
+      <div id="projectsGrid" class="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-4">
+        <!-- Populated dynamically from localStorage -->
+      </div>
+    </section>
+
+    <!-- ==================== VIEW: TEMPLATES ==================== -->
+    <section id="view-templates" class="view-section hidden space-y-6">
+      <div class="glass-panel p-6 rounded-2xl">
+        <h1 class="font-display text-2xl font-bold text-white">AI Prompt &amp; Style Templates</h1>
+        <p class="text-xs sm:text-sm text-slate-400 mt-1">Select any preset below to load its exact prompt, beat-sync rules, transitions, and color grading into the Studio.</p>
+      </div>
+
+      <div id="templatesGalleryGrid" class="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 gap-4">
+        <!-- Populated by JS -->
+      </div>
+    </section>
+
+    <!-- ==================== VIEW: SETTINGS ==================== -->
+    <section id="view-settings" class="view-section hidden space-y-6">
+      <div class="glass-panel p-6 rounded-2xl max-w-3xl mx-auto space-y-6">
+        <div>
+          <h1 class="font-display text-2xl font-bold text-white">Studio &amp; Render Engine Settings</h1>
+          <p class="text-xs sm:text-sm text-slate-400 mt-1">Configure output resolution quality, memory safeguards, and codec preferences.</p>
+        </div>
+
+        <div class="space-y-4">
+          <div class="p-4 rounded-xl bg-void/80 border border-white/10 flex items-center justify-between gap-4">
+            <div>
+              <div class="text-sm font-semibold text-white">Export Resolution Quality</div>
+              <div class="text-xs text-slate-400">720p HD is recommended for fast mobile rendering without memory spikes</div>
+            </div>
+            <select id="settingResolution" onchange="saveStudioSettings()" class="rounded-xl bg-charcoal border border-white/15 px-3 py-2 text-xs sm:text-sm text-white">
+              <option value="720" selected>720p HD (Recommended)</option>
+              <option value="1080">1080p Full HD (Desktop / High RAM)</option>
+              <option value="540">540p Fast Mobile Draft</option>
+            </select>
+          </div>
+
+          <div class="p-4 rounded-xl bg-void/80 border border-white/10 flex items-center justify-between gap-4">
+            <div>
+              <div class="text-sm font-semibold text-white">Video Bitrate Target</div>
+              <div class="text-xs text-slate-400">Higher bitrate increases sharpness for fast Jedag-Jedug transitions</div>
+            </div>
+            <select id="settingBitrate" onchange="saveStudioSettings()" class="rounded-xl bg-charcoal border border-white/15 px-3 py-2 text-xs sm:text-sm text-white">
+              <option value="4000000">4 Mbps (Standard Social)</option>
+              <option value="8000000" selected>8 Mbps (High Quality)</option>
+              <option value="12000000">12 Mbps (Ultra Master)</option>
+            </select>
+          </div>
+
+          <div class="p-4 rounded-xl bg-void/80 border border-white/10 flex items-center justify-between gap-4">
+            <div>
+              <div class="text-sm font-semibold text-white">Hardware Encoder Diagnostics</div>
+              <div id="hardwareDiagText" class="text-xs text-emerald-400 mt-0.5">Checking WebCodecs H.264 &amp; AudioEncoder availability...</div>
+            </div>
+            <span class="px-3 py-1 rounded-lg bg-white/5 text-xs font-mono text-slate-300">Client-Side Safe</span>
+          </div>
+        </div>
+      </div>
+    </section>
+
+    <!-- ==================== VIEW: PROFILE ==================== -->
+    <section id="view-profile" class="view-section hidden space-y-6">
+      <div class="glass-panel p-6 sm:p-8 rounded-2xl max-w-2xl mx-auto space-y-6">
+        <div class="flex items-center gap-4">
+          <div class="w-16 h-16 rounded-2xl bg-gradient-to-br from-purple-600 to-blue-500 flex items-center justify-center text-2xl font-display font-bold text-white shadow-lg">
+            VS
+          </div>
+          <div>
+            <h1 class="font-display text-xl sm:text-2xl font-bold text-white">VEXORA Creator Studio</h1>
+            <p class="text-xs sm:text-sm text-purple-300">Autonomous Local Rendering Suite • Zero Cloud Queue</p>
+          </div>
+        </div>
+
+        <div class="grid grid-cols-3 gap-3 text-center">
+          <div class="p-4 rounded-xl bg-void/80 border border-white/5">
+            <div id="statProjectsCount" class="font-display text-2xl font-bold text-white">0</div>
+            <div class="text-xs text-slate-400 mt-1">Saved Projects</div>
+          </div>
+          <div class="p-4 rounded-xl bg-void/80 border border-white/5">
+            <div id="statRendersCount" class="font-display text-2xl font-bold text-purple-400">0</div>
+            <div class="text-xs text-slate-400 mt-1">Videos Rendered</div>
+          </div>
+          <div class="p-4 rounded-xl bg-void/80 border border-white/5">
+            <div class="font-display text-2xl font-bold text-emerald-400">MP4</div>
+            <div class="text-xs text-slate-400 mt-1">Native Export</div>
+          </div>
+        </div>
+      </div>
+    </section>
+
+  </main>
+
+  <!-- Mobile Bottom Navigation Bar -->
+  <nav class="lg:hidden fixed bottom-0 inset-x-0 z-40 glass-panel border-t border-white/10 px-2 py-2 flex items-center justify-around">
+    <button onclick="navigateTo('home')" data-mnav="home" class="mnav-btn flex flex-col items-center gap-1 px-3 py-1 rounded-xl text-slate-400">
+      <i data-lucide="home" class="w-5 h-5"></i>
+      <span class="text-[10px] font-medium">Home</span>
+    </button>
+    <button onclick="navigateTo('create')" data-mnav="create" class="mnav-btn flex flex-col items-center gap-1 px-3 py-1 rounded-xl text-purple-400">
+      <i data-lucide="clapperboard" class="w-5 h-5"></i>
+      <span class="text-[10px] font-semibold">Create</span>
+    </button>
+    <button onclick="navigateTo('projects')" data-mnav="projects" class="mnav-btn flex flex-col items-center gap-1 px-3 py-1 rounded-xl text-slate-400">
+      <i data-lucide="folder-kanban" class="w-5 h-5"></i>
+      <span class="text-[10px] font-medium">Projects</span>
+    </button>
+    <button onclick="navigateTo('templates')" data-mnav="templates" class="mnav-btn flex flex-col items-center gap-1 px-3 py-1 rounded-xl text-slate-400">
+      <i data-lucide="sparkles" class="w-5 h-5"></i>
+      <span class="text-[10px] font-medium">Styles</span>
+    </button>
+    <button onclick="navigateTo('settings')" data-mnav="settings" class="mnav-btn flex flex-col items-center gap-1 px-3 py-1 rounded-xl text-slate-400">
+      <i data-lucide="settings" class="w-5 h-5"></i>
+      <span class="text-[10px] font-medium">Settings</span>
+    </button>
+  </nav>
+
+  <!-- Toast Notification Container -->
+  <div id="toastContainer" class="fixed top-20 right-4 z-50 flex flex-col gap-2 max-w-xs sm:max-w-sm pointer-events-none"></div>
+
+  <!-- ==================== CORE APPLICATION ENGINE ==================== -->
+  <script>
+    /**
+     * VEXORA STUDIO AI - Complete Autonomous Video Editor & Renderer
+     * Architecture:
+     * 1. Dynamic Photo Slot Manager (Drag & drop reorder, replace, remove, validation)
+     * 2. Local NLP Prompt-to-Video Compiler (Translates natural language into deterministic FX parameters)
+     * 3. Web Audio Beat Detector & Built-in Synth Beat Generator (Real peak energy onset detection)
+     * 4. Deterministic Frame Composition Engine (Canvas 2D GPU-composited shake, RGB split, velocity, LUTs, transitions)
+     * 5. Dual Real Video Encoder:
+     *    - Primary: WebCodecs VideoEncoder (H.264) + AudioEncoder (AAC) + mp4-muxer => True .MP4 file
+     *    - Fallback: Offscreen Canvas captureStream + MediaRecorder => Playable video download
+     */
+
+    // ==================== GLOBAL STATE ====================
+    const VIDEO_STYLES = [
+      { id: 'jedag_jedug', name: 'Jedag Jedug', desc: 'Heavy bass zoom, shake & RGB flash', icon: 'zap', preset: { beatSync: true, shake: true, flash: true, rgb: true, zoom: true, velocity: true, blur: true, tilt3d: false, grade: 'vibrant' } },
+      { id: 'velocity', name: 'Velocity Edit', desc: 'Smooth speed ramps & beat snaps', icon: 'fast-forward', preset: { beatSync: true, shake: false, flash: true, rgb: false, zoom: true, velocity: true, blur: true, tilt3d: false, grade: 'cyberpunk' } },
+      { id: 'cinematic', name: 'Cinematic', desc: 'Slow Ken Burns, film LUT & dissolves', icon: 'film', preset: { beatSync: false, shake: false, flash: false, rgb: false, zoom: true, velocity: false, blur: false, tilt3d: false, grade: 'cinematic' } },
+      { id: 'anime_amv', name: 'Anime AMV', desc: 'Aggressive impact frames & chromatic split', icon: 'flame', preset: { beatSync: true, shake: true, flash: true, rgb: true, zoom: true, velocity: true, blur: true, tilt3d: false, grade: 'cyberpunk' } },
+      { id: 'slow_motion', name: 'Slow Motion', desc: 'Dreamy eased motion & warm glow', icon: 'clock', preset: { beatSync: false, shake: false, flash: false, rgb: false, zoom: true, velocity: false, blur: true, tilt3d: false, grade: 'warm' } },
+      { id: 'slideshow', name: 'Photo Slideshow', desc: 'Clean crossfades & gentle framing', icon: 'images', preset: { beatSync: false, shake: false, flash: false, rgb: false, zoom: false, velocity: false, blur: false, tilt3d: false, grade: 'none' } },
+      { id: '3d_motion', name: '3D Photo Motion', desc: 'Simulated parallax tilt & depth zoom', icon: 'box', preset: { beatSync: true, shake: false, flash: false, rgb: false, zoom: true, velocity: false, blur: false, tilt3d: true, grade: 'cinematic' } },
+      { id: 'beat_sync', name: 'Beat Sync', desc: 'Hard cuts locked to audio transients', icon: 'activity', preset: { beatSync: true, shake: false, flash: true, rgb: false, zoom: true, velocity: false, blur: false, tilt3d: false, grade: 'vibrant' } },
+      { id: 'glitch_edit', name: 'Glitch Edit', desc: 'RGB channel tear & digital jitter', icon: 'tv', preset: { beatSync: true, shake: true, flash: true, rgb: true, zoom: false, velocity: true, blur: false, tilt3d: false, grade: 'moody' } },
+      { id: 'gaming_montage', name: 'Gaming Montage', desc: 'High-contrast punch, shake & velocity', icon: 'gamepad-2', preset: { beatSync: true, shake: true, flash: true, rgb: true, zoom: true, velocity: true, blur: true, tilt3d: false, grade: 'cyberpunk' } },
+      { id: 'custom', name: 'Custom Prompt', desc: '100% driven by your custom prompt', icon: 'sliders', preset: null }
+    ];
+
+    const state = {
+      slotCount: 5,
+      photos: [], // Array of { id, url, imgElement, name } or null
+      replacingSlotIndex: null,
+      draggedSlotIndex: null,
+
+      // Video Edit Configuration
+      config: {
+        styleId: 'jedag_jedug',
+        prompt: '',
+        aspectRatio: '9:16',
+        duration: 15,
+        fps: 30,
+        colorGrade: 'vibrant',
+        textOverlay: '',
+        beatSync: true,
+        shake: true,
+        flash: true,
+        rgb: true,
+        zoom: true,
+        velocity: true,
+        blur: true,
+        tilt3d: false
+      },
+
+      // Audio State
+      audio: {
+        fileName: null,
+        audioBuffer: null,
+        beats: [], // Array of timestamps in seconds
+        startOffset: 0,
+        volume: 1.0,
+        fadeIn: true,
+        fadeOut: true,
+        isPreviewPlaying: false,
+        previewSourceNode: null,
+        audioCtx: null
+      },
+
+      // Live Preview Loop
+      livePreview: {
+        isPlaying: true,
+        startTime: performance.now(),
+        rafId: null,
+        mode: 'live' // 'live' | 'final'
+      },
+
+      // Render & Output State
+      render: {
+        isRendering: false,
+        outputBlobUrl: null,
+        outputExtension: 'mp4',
+        renderCount: parseInt(localStorage.getItem('vexora_render_count') || '0', 10)
+      },
+
+      // Studio Global Settings
+      settings: {
+        resolution: '720',
+        bitrate: 8000000
+      }
+    };
+
+    // ==================== INITIALIZATION ====================
+    window.addEventListener('DOMContentLoaded', () => {
+      initPhotoSlots(5);
+      renderStyleGrid();
+      renderTemplatesGallery();
+      loadSavedProjectsList();
+      checkHardwareCodecs();
+      parsePromptAndSyncUI(false);
+      updateResolutionBadge();
+      startLivePreviewLoop();
+      updateProfileStats();
+      lucide.createIcons();
+    });
+
+    function checkHardwareCodecs() {
+      const supportsWebCodecs = typeof VideoEncoder !== 'undefined' && typeof AudioEncoder !== 'undefined' && typeof Mp4Muxer !== 'undefined';
+      const badgeText = document.getElementById('codecBadgeText');
+      const diagText = document.getElementById('hardwareDiagText');
+
+      if (supportsWebCodecs) {
+        badgeText.textContent = 'MP4 H.264 Hardware Ready';
+        if (diagText) diagText.textContent = 'Active: WebCodecs VideoEncoder (AVC/H.264) + AudioEncoder (AAC) + MP4 Muxer';
+      } else {
+        badgeText.textContent = 'WebM/MP4 Stream Ready';
+        if (diagText) diagText.textContent = 'Fallback Active: MediaRecorder Canvas Stream (WebCodecs unavailable on this browser)';
+      }
+    }
+
+    // ==================== NAVIGATION ====================
+    function navigateTo(viewId) {
+      document.querySelectorAll('.view-section').forEach(el => el.classList.add('hidden'));
+      const target = document.getElementById(`view-${viewId}`);
+      if (target) target.classList.remove('hidden');
+
+      // Update Desktop Nav
+      document.querySelectorAll('.nav-btn').forEach(btn => {
+        if (btn.dataset.nav === viewId) {
+          btn.classList.add('bg-white/10', 'text-white');
+          btn.classList.remove('text-slate-300');
+        } else {
+          btn.classList.remove('bg-white/10', 'text-white');
+          btn.classList.add('text-slate-300');
+        }
+      });
+
+      // Update Mobile Nav
+      document.querySelectorAll('.mnav-btn').forEach(btn => {
+        if (btn.dataset.mnav === viewId) {
+          btn.classList.add('text-purple-400');
+          btn.classList.remove('text-slate-400');
+        } else {
+          btn.classList.remove('text-purple-400');
+          btn.classList.add('text-slate-400');
+        }
+      });
+
+      if (viewId === 'projects') loadSavedProjectsList();
+      if (viewId === 'profile') updateProfileStats();
+      window.scrollTo({ top: 0, behavior: 'smooth' });
+    }
+
+    function toggleDocs() {
+      const content = document.getElementById('docsContent');
+      const chevron = document.getElementById('docsChevron');
+      content.classList.toggle('hidden');
+      chevron.style.transform = content.classList.contains('hidden') ? 'rotate(0deg)' : 'rotate(180deg)';
+    }
+
+    function showToast(message, type = 'info') {
+      const container = document.getElementById('toastContainer');
+      const colors = {
+        info: 'border-purple-500/40 bg-charcoal/95 text-slate-100',
+        success: 'border-emerald-500/40 bg-charcoal/95 text-emerald-200',
+        error: 'border-rose-500/40 bg-charcoal/95 text-rose-200',
+        warning: 'border-amber-500/40 bg-charcoal/95 text-amber-200'
+      };
+      const icons = {
+        info: 'info',
+        success: 'check-circle-2',
+        error: 'alert-circle',
+        warning: 'alert-triangle'
+      };
+
+      const toast = document.createElement('div');
+      toast.className = `pointer-events-auto flex items-center gap-2.5 px-4 py-3 rounded-xl border shadow-2xl backdrop-blur-md text-xs font-medium transition-all duration-300 translate-x-4 opacity-0 ${colors[type] || colors.info}`;
+      toast.innerHTML = `<i data-lucide="${icons[type] || 'info'}" class="w-4 h-4 shrink-0"></i><span>${message}</span>`;
+      container.appendChild(toast);
+      lucide.createIcons({ root: toast });
+
+      requestAnimationFrame(() => {
+        toast.classList.remove('translate-x-4', 'opacity-0');
+      });
+
+      setTimeout(() => {
+        toast.classList.add('opacity-0', 'translate-x-4');
+        setTimeout(() => toast.remove(), 300);
+      }, 3600);
+    }
+
+    // ==================== 1. DYNAMIC PHOTO UPLOAD SYSTEM ====================
+    function initPhotoSlots(count) {
+      state.slotCount = count;
+      const newPhotos = new Array(count).fill(null);
+      for (let i = 0; i < Math.min(count, state.photos.length); i++) {
+        newPhotos[i] = state.photos[i];
+      }
+      state.photos = newPhotos;
+      document.getElementById('slotCountInput').value = count;
+      renderPhotoSlots();
+    }
+
+    function changeSlotCount(delta) {
+      const next = Math.max(2, Math.min(20, state.slotCount + delta));
+      setSlotCount(next);
+    }
+
+    function setSlotCount(val) {
+      const parsed = Math.max(2, Math.min(20, parseInt(val, 10) || 5));
+      initPhotoSlots(parsed);
+      showToast(`Photo timeline updated to ${parsed} slots`, 'info');
+    }
+
+    function triggerBatchUpload() {
+      document.getElementById('batchFileInput').value = '';
+      document.getElementById('batchFileInput').click();
+    }
+
+    function triggerReplaceSlot(index) {
+      state.replacingSlotIndex = index;
+      document.getElementById('singleSlotFileInput').value = '';
+      document.getElementById('singleSlotFileInput').click();
+    }
+
+    async function loadImageFromFile(file) {
+      const validTypes = ['image/jpeg', 'image/jpg', 'image/png', 'image/webp'];
+      if (!validTypes.includes(file.type)) {
+        throw new Error(`Unsupported format (${file.name}). Use JPG, PNG, or WEBP.`);
+      }
+      return new Promise((resolve, reject) => {
+        const url = URL.createObjectURL(file);
+        const img = new Image();
+        img.onload = () => {
+          resolve({
+            id: 'photo_' + Math.random().toString(36).slice(2, 9),
+            url,
+            imgElement: img,
+            name: file.name
+          });
+        };
+        img.onerror = () => {
+          URL.revokeObjectURL(url);
+          reject(new Error(`Failed to decode image: ${file.name}`));
+        };
+        img.src = url;
+      });
+    }
+
+    async function handleBatchFiles(event) {
+      const files = Array.from(event.target.files || []);
+      if (!files.length) return;
+
+      let loadedCount = 0;
+      for (const file of files) {
+        // Find next empty slot; if full, expand slot count up to 20
+        let emptyIdx = state.photos.findIndex(p => p === null);
+        if (emptyIdx === -1) {
+          if (state.slotCount < 20) {
+            state.slotCount++;
+            state.photos.push(null);
+            emptyIdx = state.slotCount - 1;
+            document.getElementById('slotCountInput').value = state.slotCount;
+          } else {
+            showToast('Maximum 20 photo slots reached.', 'warning');
+            break;
+          }
+        }
+        try {
+          const photoObj = await loadImageFromFile(file);
+          state.photos[emptyIdx] = photoObj;
+          loadedCount++;
+        } catch (err) {
+          showToast(err.message, 'error');
+        }
+      }
+
+      if (loadedCount > 0) {
+        renderPhotoSlots();
+        showToast(`Added ${loadedCount} photo${loadedCount > 1 ? 's' : ''} to timeline`, 'success');
+      }
+    }
+
+    async function handleSingleSlotFile(event) {
+      const file = (event.target.files || [])[0];
+      const idx = state.replacingSlotIndex;
+      if (!file || idx === null) return;
+
+      try {
+        const photoObj = await loadImageFromFile(file);
+        if (state.photos[idx]?.url) {
+          URL.revokeObjectURL(state.photos[idx].url);
+        }
+        state.photos[idx] = photoObj;
+        renderPhotoSlots();
+        showToast(`Photo #${idx + 1} updated`, 'success');
+      } catch (err) {
+        showToast(err.message, 'error');
+      } finally {
+        state.replacingSlotIndex = null;
+      }
+    }
+
+    function removePhotoAt(index) {
+      if (state.photos[index]?.url) {
+        URL.revokeObjectURL(state.photos[index].url);
+      }
+      state.photos[index] = null;
+      renderPhotoSlots();
+    }
+
+    function clearAllPhotos() {
+      state.photos.forEach(p => {
+        if (p?.url) URL.revokeObjectURL(p.url);
+      });
+      state.photos = new Array(state.slotCount).fill(null);
+      renderPhotoSlots();
+      showToast('All photo slots cleared', 'info');
+    }
+
+    function movePhotoSlot(fromIdx, toIdx) {
+      if (fromIdx === toIdx || toIdx < 0 || toIdx >= state.slotCount) return;
+      const temp = state.photos[fromIdx];
+      state.photos[fromIdx] = state.photos[toIdx];
+      state.photos[toIdx] = temp;
+      renderPhotoSlots();
+    }
+
+    function renderPhotoSlots() {
+      const grid = document.getElementById('photoSlotsGrid');
+      grid.innerHTML = '';
+
+      let uploadedCount = 0;
+
+      state.photos.forEach((photo, idx) => {
+        if (photo) uploadedCount++;
+
+        const card = document.createElement('div');
+        card.className = 'relative group aspect-[3/4] rounded-xl border transition-all overflow-hidden flex flex-col justify-between ' +
+          (photo ? 'border-purple-500/40 bg-void' : 'border-dashed border-white/15 bg-void/50 hover:border-purple-400/50 cursor-pointer');
+        card.draggable = true;
+
+        // Drag and drop events
+        card.addEventListener('dragstart', (e) => {
+          state.draggedSlotIndex = idx;
+          card.classList.add('opacity-50');
+        });
+        card.addEventListener('dragend', () => {
+          card.classList.remove('opacity-50');
+          state.draggedSlotIndex = null;
+        });
+        card.addEventListener('dragover', (e) => {
+          e.preventDefault();
+          card.classList.add('drag-over');
+        });
+        card.addEventListener('dragleave', () => {
+          card.classList.remove('drag-over');
+        });
+        card.addEventListener('drop', (e) => {
+          e.preventDefault();
+          card.classList.remove('drag-over');
+          if (state.draggedSlotIndex !== null && state.draggedSlotIndex !== idx) {
+            movePhotoSlot(state.draggedSlotIndex, idx);
+          }
+        });
+
+        if (photo) {
+          card.innerHTML = `
+            <img src="${photo.url}" alt="Photo ${idx + 1}" class="absolute inset-0 w-full h-full object-cover" />
+            <div class="absolute inset-0 bg-gradient-to-t from-black/85 via-transparent to-black/50"></div>
+            
+            <!-- Top Bar: Order Number & Drag Handle -->
+            <div class="relative z-10 p-2 flex items-center justify-between">
+              <span class="px-2 py-0.5 rounded-md bg-purple-600/90 text-white text-[11px] font-bold shadow">#${idx + 1}</span>
+              <div class="flex items-center gap-1">
+                ${idx > 0 ? `<button onclick="event.stopPropagation(); movePhotoSlot(${idx}, ${idx - 1})" class="p-1 rounded bg-black/60 hover:bg-black text-white" title="Move Earlier"><i data-lucide="chevron-left" class="w-3 h-3"></i></button>` : ''}
+                ${idx < state.slotCount - 1 ? `<button onclick="event.stopPropagation(); movePhotoSlot(${idx}, ${idx + 1})" class="p-1 rounded bg-black/60 hover:bg-black text-white" title="Move Later"><i data-lucide="chevron-right" class="w-3 h-3"></i></button>` : ''}
+              </div>
+            </div>
+
+            <!-- Bottom Action Controls: Replace & Remove -->
+            <div class="relative z-10 p-2 flex items-center gap-1.5">
+              <button onclick="event.stopPropagation(); triggerReplaceSlot(${idx})" class="flex-1 py-1.5 px-2 rounded-lg bg-white/15 hover:bg-white/25 backdrop-blur text-[11px] font-semibold text-white flex items-center justify-center gap-1 transition">
+                <i data-lucide="refresh-cw" class="w-3 h-3"></i>
+                <span>Replace</span>
+              </button>
+              <button onclick="event.stopPropagation(); removePhotoAt(${idx})" class="p-1.5 rounded-lg bg-rose-500/80 hover:bg-rose-500 text-white transition" title="Remove Photo">
+                <i data-lucide="trash" class="w-3.5 h-3.5"></i>
+              </button>
+            </div>
+          `;
+        } else {
+          card.onclick = () => triggerReplaceSlot(idx);
+          card.innerHTML = `
+            <div class="p-2 flex items-center justify-between">
+              <span class="px-2 py-0.5 rounded-md bg-white/10 text-slate-300 text-[11px] font-bold">#${idx + 1}</span>
+            </div>
+            <div class="flex flex-col items-center justify-center text-center p-2 my-auto">
+              <div class="w-9 h-9 rounded-full bg-purple-500/15 border border-purple-500/30 flex items-center justify-center text-purple-300 mb-1.5">
+                <i data-lucide="plus" class="w-4 h-4"></i>
+              </div>
+              <span class="text-xs font-semibold text-slate-300">Add Photo</span>
+              <span class="text-[10px] text-slate-500 mt-0.5">Tap to upload</span>
+            </div>
+            <div class="h-4"></div>
+          `;
+        }
+
+        grid.appendChild(card);
+      });
+
+      // Update Validation & Generate Button State
+      const counterBadge = document.getElementById('photoCounterBadge');
+      const valBanner = document.getElementById('photoValidationBanner');
+      const valText = document.getElementById('photoValidationText');
+      const genBtn = document.getElementById('generateVideoBtn');
+      const genBtnText = document.getElementById('generateBtnText');
+
+      counterBadge.textContent = `${uploadedCount} / ${state.slotCount} Photos Uploaded`;
+
+      if (uploadedCount === state.slotCount) {
+        counterBadge.className = 'px-3 py-1 rounded-full text-xs font-semibold bg-emerald-500/15 text-emerald-300 border border-emerald-500/30';
+        valBanner.className = 'flex items-center gap-2.5 p-3 rounded-xl bg-emerald-500/10 border border-emerald-500/25 text-emerald-200 text-xs';
+        valText.textContent = `All ${state.slotCount} photo slots are ready in exact sequence for rendering.`;
+        genBtn.disabled = false;
+        genBtnText.textContent = `Generate Real Video (${state.config.duration}s MP4)`;
+      } else {
+        const missing = state.slotCount - uploadedCount;
+        counterBadge.className = 'px-3 py-1 rounded-full text-xs font-semibold bg-amber-500/15 text-amber-300 border border-amber-500/30';
+        valBanner.className = 'flex items-center gap-2.5 p-3 rounded-xl bg-amber-500/10 border border-amber-500/25 text-amber-200 text-xs';
+        valText.textContent = `Missing ${missing} photo${missing > 1 ? 's' : ''}. Upload all ${state.slotCount} slots or reduce total photo count to render.`;
+        genBtn.disabled = true;
+        genBtnText.textContent = `Upload ${missing} More Photo${missing > 1 ? 's' : ''} to Render`;
+      }
+
+      lucide.createIcons({ root: grid });
+    }
+
+    // ==================== 2. PROMPT TO VIDEO ENGINE & STYLES ====================
+    function renderStyleGrid() {
+      const container = document.getElementById('styleSelectorGrid');
+      container.innerHTML = '';
+
+      VIDEO_STYLES.forEach(style => {
+        const isSelected = state.config.styleId === style.id;
+        const btn = document.createElement('button');
+        btn.type = 'button';
+        btn.onclick = () => selectVideoStyle(style.id);
+        btn.className = `p-2.5 rounded-xl border text-left transition flex items-start gap-2.5 ${
+          isSelected
+            ? 'bg-purple-600/25 border-purple-500 text-white shadow-lg shadow-purple-500/10'
+            : 'bg-void/60 border-white/5 hover:border-white/20 text-slate-300'
+        }`;
+        btn.innerHTML = `
+          <div class="w-7 h-7 rounded-lg ${isSelected ? 'bg-purple-500 text-white' : 'bg-white/5 text-purple-300'} flex items-center justify-center shrink-0 mt-0.5">
+            <i data-lucide="${style.icon}" class="w-3.5 h-3.5"></i>
+          </div>
+          <div class="min-w-0">
+            <div class="text-xs font-semibold truncate">${style.name}</div>
+            <div class="text-[10px] text-slate-400 line-clamp-1">${style.desc}</div>
+          </div>
+        `;
+        container.appendChild(btn);
+      });
+      lucide.createIcons({ root: container });
+    }
+
+    function selectVideoStyle(styleId) {
+      state.config.styleId = styleId;
+      const found = VIDEO_STYLES.find(s => s.id === styleId);
+      if (found && found.preset) {
+        state.config.beatSync = found.preset.beatSync;
+        state.config.shake = found.preset.shake;
+        state.config.flash = found.preset.flash;
+        state.config.rgb = found.preset.rgb;
+        state.config.zoom = found.preset.zoom;
+        state.config.velocity = found.preset.velocity;
+        state.config.blur = found.preset.blur;
+        state.config.tilt3d = found.preset.tilt3d;
+        state.config.colorGrade = found.preset.grade;
+        syncUIFromConfig();
+      }
+      renderStyleGrid();
+      renderCompiledTags();
+    }
+
+    let promptDebounceTimer = null;
+    function onPromptTyped() {
+      clearTimeout(promptDebounceTimer);
+      promptDebounceTimer = setTimeout(() => {
+        parsePromptAndSyncUI(false);
+      }, 350);
+    }
+
+    /**
+     * Real Prompt-to-Video Compiler:
+     * Extracts duration, aspect ratio, editing style, and specific visual effects
+     * directly from user natural language prompt and applies them to the render state.
+     */
+    function parsePromptAndSyncUI(notify = true) {
+      const rawPrompt = document.getElementById('videoPromptInput').value.trim();
+      state.config.prompt = rawPrompt;
+      const p = rawPrompt.toLowerCase();
+
+      if (!p) return;
+
+      // 1. Extract Duration (e.g., "30-second", "15 sec", "20s", "10 detik")
+      const durMatch = p.match(/(\d{1,2})\s*(?:-|\s)?(?:second|sec|detik|s\b)/i);
+      if (durMatch) {
+        const parsedDur = Math.max(3, Math.min(60, parseInt(durMatch[1], 10)));
+        state.config.duration = parsedDur;
+      }
+
+      // 2. Extract Aspect Ratio
+      if (p.includes('16:9') || p.includes('youtube') || p.includes('landscape')) {
+        state.config.aspectRatio = '16:9';
+      } else if (p.includes('1:1') || p.includes('square') || p.includes('instagram post')) {
+        state.config.aspectRatio = '1:1';
+      } else if (p.includes('9:16') || p.includes('tiktok') || p.includes('reels') || p.includes('shorts') || p.includes('vertical')) {
+        state.config.aspectRatio = '9:16';
+      }
+
+      // 3. Detect Style Keywords
+      if (p.includes('jedag') || p.includes('jj') || p.includes('indonesian')) {
+        state.config.styleId = 'jedag_jedug';
+      } else if (p.includes('velocity')) {
+        state.config.styleId = 'velocity';
+      } else if (p.includes('anime') || p.includes('amv')) {
+        state.config.styleId = 'anime_amv';
+      } else if (p.includes('cinematic') || p.includes('film')) {
+        state.config.styleId = 'cinematic';
+      } else if (p.includes('slow mo') || p.includes('slow-mo') || p.includes('slow motion')) {
+        state.config.styleId = 'slow_motion';
+      } else if (p.includes('3d')) {
+        state.config.styleId = '3d_motion';
+      } else if (p.includes('glitch')) {
+        state.config.styleId = 'glitch_edit';
+      } else if (p.includes('gaming') || p.includes('montage')) {
+        state.config.styleId = 'gaming_montage';
+      } else if (p.includes('slideshow')) {
+        state.config.styleId = 'slideshow';
+      }
+
+      // 4. Detect Granular FX Overrides
+      if (p.includes('beat sync') || p.includes('beat-sync') || p.includes('on beat')) state.config.beatSync = true;
+      if (p.includes('no shake')) state.config.shake = false;
+      else if (p.includes('shake')) state.config.shake = true;
+
+      if (p.includes('no flash')) state.config.flash = false;
+      else if (p.includes('flash')) state.config.flash = true;
+
+      if (p.includes('rgb') || p.includes('chromatic')) state.config.rgb = true;
+      if (p.includes('zoom')) state.config.zoom = true;
+      if (p.includes('velocity')) state.config.velocity = true;
+      if (p.includes('blur')) state.config.blur = true;
+      if (p.includes('3d')) state.config.tilt3d = true;
+
+      // 5. Color Grading Keywords
+      if (p.includes('cyberpunk') || p.includes('neon')) state.config.colorGrade = 'cyberpunk';
+      else if (p.includes('cinematic') || p.includes('teal')) state.config.colorGrade = 'cinematic';
+      else if (p.includes('moody') || p.includes('dark')) state.config.colorGrade = 'moody';
+      else if (p.includes('warm') || p.includes('golden')) state.config.colorGrade = 'warm';
+      else if (p.includes('vibrant') || p.includes('aggressive')) state.config.colorGrade = 'vibrant';
+
+      syncUIFromConfig();
+      renderStyleGrid();
+      renderCompiledTags();
+      updateResolutionBadge();
+
+      if (notify) {
+        showToast('Prompt compiled into active video rendering pipeline!', 'success');
+      }
+    }
+
+    function applyQuickPrompt(key) {
+      const prompts = {
+        jedag: 'Create a 15-second aggressive Indonesian jedag-jedug edit with velocity transitions, beat sync, smooth zoom, camera shake, RGB flash, vibrant color grading and professional transitions. Use all uploaded photos in the correct order.',
+        velocity: 'Create a 12-second 9:16 TikTok velocity edit with beat sync, smooth speed ramps, zoom in, motion blur, and cyberpunk neon color grading.',
+        cinematic: 'Create a 20-second 16:9 epic cinematic film montage with slow smooth zoom, gentle dissolves, no shake, no flash, and cinematic teal & orange color grading.',
+        anime: 'Create a 15-second high-energy Anime AMV glitch edit with heavy beat sync, camera shake, RGB chromatic split, white flash impacts, and velocity cuts.'
+      };
+      document.getElementById('videoPromptInput').value = prompts[key] || prompts.jedag;
+      parsePromptAndSyncUI(true);
+    }
+
+    function syncUIFromConfig() {
+      document.getElementById('aspectRatioSelect').value = state.config.aspectRatio;
+      document.getElementById('durationInput').value = state.config.duration;
+      document.getElementById('colorGradeSelect').value = state.config.colorGrade;
+      document.getElementById('fpsSelect').value = String(state.config.fps);
+      document.getElementById('textOverlayInput').value = state.config.textOverlay || '';
+
+      document.getElementById('fxBeatSync').checked = state.config.beatSync;
+      document.getElementById('fxShake').checked = state.config.shake;
+      document.getElementById('fxFlash').checked = state.config.flash;
+      document.getElementById('fxRgb').checked = state.config.rgb;
+      document.getElementById('fxZoom').checked = state.config.zoom;
+      document.getElementById('fxVelocity').checked = state.config.velocity;
+      document.getElementById('fxBlur').checked = state.config.blur;
+      document.getElementById('fx3dTilt').checked = state.config.tilt3d;
+
+      const uploadedCount = state.photos.filter(Boolean).length;
+      if (uploadedCount === state.slotCount) {
+        document.getElementById('generateBtnText').textContent = `Generate Real Video (${state.config.duration}s MP4)`;
+      }
+    }
+
+    function updateConfigFromInputs() {
+      state.config.aspectRatio = document.getElementById('aspectRatioSelect').value;
+      state.config.duration = Math.max(3, Math.min(60, parseInt(document.getElementById('durationInput').value, 10) || 15));
+      state.config.colorGrade = document.getElementById('colorGradeSelect').value;
+      state.config.fps = parseInt(document.getElementById('fpsSelect').value, 10) || 30;
+      state.config.textOverlay = document.getElementById('textOverlayInput').value;
+
+      state.config.beatSync = document.getElementById('fxBeatSync').checked;
+      state.config.shake = document.getElementById('fxShake').checked;
+      state.config.flash = document.getElementById('fxFlash').checked;
+      state.config.rgb = document.getElementById('fxRgb').checked;
+      state.config.zoom = document.getElementById('fxZoom').checked;
+      state.config.velocity = document.getElementById('fxVelocity').checked;
+      state.config.blur = document.getElementById('fxBlur').checked;
+      state.config.tilt3d = document.getElementById('fx3dTilt').checked;
+
+      renderCompiledTags();
+      updateResolutionBadge();
+
+      const uploadedCount = state.photos.filter(Boolean).length;
+      if (uploadedCount === state.slotCount) {
+        document.getElementById('generateBtnText').textContent = `Generate Real Video (${state.config.duration}s MP4)`;
+      }
+    }
+
+    function renderCompiledTags() {
+      const styleObj = VIDEO_STYLES.find(s => s.id === state.config.styleId);
+      document.getElementById('detectedStyleTag').textContent = styleObj ? styleObj.name : 'Custom';
+
+      const tags = [
+        `${state.config.duration}s`,
+        state.config.aspectRatio,
+        `${state.config.fps} FPS`,
+        `LUT: ${state.config.colorGrade}`
+      ];
+      if (state.config.beatSync) tags.push('Beat-Sync');
+      if (state.config.velocity) tags.push('Velocity');
+      if (state.config.shake) tags.push('Cam-Shake');
+      if (state.config.flash) tags.push('Beat-Flash');
+      if (state.config.rgb) tags.push('RGB-Split');
+      if (state.config.zoom) tags.push('Dynamic-Zoom');
+      if (state.config.blur) tags.push('Motion-Blur');
+      if (state.config.tilt3d) tags.push('3D-Tilt');
+
+      const container = document.getElementById('compiledTagsContainer');
+      container.innerHTML = tags.map(t => `<span class="px-2 py-0.5 rounded-md bg-white/5 border border-white/10 text-[11px] text-slate-300 font-medium">${t}</span>`).join('');
+    }
+
+    function getOutputDimensions() {
+      const baseRes = parseInt(state.settings.resolution, 10) || 720;
+      const ratio = state.config.aspectRatio;
+      let w, h;
+      if (ratio === '9:16') {
+        w = baseRes;
+        h = Math.round((baseRes * 16) / 9);
+      } else if (ratio === '16:9') {
+        w = Math.round((baseRes * 16) / 9);
+        h = baseRes;
+      } else {
+        w = baseRes;
+        h = baseRes;
+      }
+      // H.264 requires even dimensions
+      w = w % 2 === 0 ? w : w + 1;
+      h = h % 2 === 0 ? h : h + 1;
+      return { width: w, height: h };
+    }
+
+    function updateResolutionBadge() {
+      const { width, height } = getOutputDimensions();
+      document.getElementById('resolutionBadge').textContent = `${width}×${height} • ${state.config.fps}fps`;
+    }
+
+    // ==================== 3. AUDIO & REAL BEAT DETECTION SYSTEM ====================
+    function getAudioContext() {
+      if (!state.audio.audioCtx) {
+        const AudioCtx = window.AudioContext || window.webkitAudioContext;
+        state.audio.audioCtx = new AudioCtx();
+      }
+      if (state.audio.audioCtx.state === 'suspended') {
+        state.audio.audioCtx.resume();
+      }
+      return state.audio.audioCtx;
+    }
+
+    async function handleAudioUpload(event) {
+      const file = (event.target.files || [])[0];
+      if (!file) return;
+
+      stopAudioPreview();
+      try {
+        showToast('Decoding audio & analyzing beat transients...', 'info');
+        const arrayBuffer = await file.arrayBuffer();
+        const ctx = getAudioContext();
+        const decoded = await ctx.decodeAudioData(arrayBuffer);
+
+        state.audio.fileName = file.name;
+        state.audio.audioBuffer = decoded;
+        state.audio.startOffset = 0;
+        state.audio.beats = detectBeatsFromAudioBuffer(decoded);
+
+        updateAudioUI();
+        showToast(`Loaded "${file.name}" (${state.audio.beats.length} beats detected)`, 'success');
+      } catch (err) {
+        showToast('Unable to decode audio file. Please try standard MP3 or WAV.', 'error');
+      }
+    }
+
+    /**
+     * Synthesizes a real 130 BPM Phonk / Jedag-Jedug electronic bass & kick track
+     * directly into an AudioBuffer so users without local MP3s can immediately test real audio + beat sync.
+     */
+    function generateBuiltInBeatTrack() {
+      stopAudioPreview();
+      const ctx = getAudioContext();
+      const sampleRate = ctx.sampleRate;
+      const duration = Math.max(30, state.config.duration + 5);
+      const length = sampleRate * duration;
+      const buffer = ctx.createBuffer(2, length, sampleRate);
+      const left = buffer.getChannelData(0);
+      const right = buffer.getChannelData(1);
+
+      const bpm = 132;
+      const beatInterval = 60 / bpm;
+
+      for (let i = 0; i < length; i++) {
+        const t = i / sampleRate;
+        const beatPos = t % beatInterval;
+        const beatIndex = Math.floor(t / beatInterval);
+
+        // Punchy sub-bass kick on every beat
+        const kickEnv = Math.exp(-beatPos * 14);
+        const kickFreq = 48 + 95 * Math.exp(-beatPos * 35);
+        const kick = Math.sin(2 * Math.PI * kickFreq * beatPos) * kickEnv * 0.75;
+
+        // Off-beat snare / clap on odd beats
+        let snare = 0;
+        if (beatIndex % 2 === 1 && beatPos < 0.18) {
+          const snareEnv = Math.exp(-beatPos * 24);
+          snare = (Math.random() * 2 - 1) * snareEnv * 0.35;
+        }
+
+        // Dark cyberpunk bassline synth
+        const notes = [55, 55, 65.41, 49.0];
+        const bassFreq = notes[Math.floor(beatIndex / 4) % notes.length];
+        const bass = Math.tanh(Math.sin(2 * Math.PI * bassFreq * t) * 2.2) * 0.22 * (0.6 + 0.4 * Math.sin(t * 8));
+
+        const sample = Math.max(-0.95, Math.min(0.95, kick + snare + bass));
+        left[i] = sample;
+        right[i] = sample;
+      }
+
+      state.audio.fileName = 'VEXORA_Cyber_Phonk_132BPM.wav (Generated)';
+      state.audio.audioBuffer = buffer;
+      state.audio.startOffset = 0;
+      state.audio.beats = detectBeatsFromAudioBuffer(buffer);
+
+      updateAudioUI();
+      showToast(`Generated 132 BPM Bass Beat (${state.audio.beats.length} beat peaks)`, 'success');
+    }
+
+    /**
+     * Real Energy-Peak Beat Onset Detector:
+     * Scans PCM amplitude windows to locate true bass/kick transients.
+     */
+    function detectBeatsFromAudioBuffer(buffer) {
+      const data = buffer.getChannelData(0);
+      const sampleRate = buffer.sampleRate;
+      const windowSize = Math.floor(sampleRate * 0.05); // 50ms windows
+      const energies = [];
+
+      for (let i = 0; i < data.length; i += windowSize) {
+        let sum = 0;
+        const end = Math.min(i + windowSize, data.length);
+        for (let j = i; j < end; j++) {
+          sum += data[j] * data[j];
+        }
+        energies.push(Math.sqrt(sum / (end - i)));
+      }
+
+      const beats = [];
+      const historyWindow = 16;
+      const minBeatGap = 0.26; // max ~230 BPM
+
+      for (let i = 1; i < energies.length; i++) {
+        const start = Math.max(0, i - historyWindow);
+        let localAvg = 0;
+        for (let k = start; k < i; k++) localAvg += energies[k];
+        localAvg /= Math.max(1, i - start);
+
+        const timeSec = (i * windowSize) / sampleRate;
+        if (energies[i] > localAvg * 1.32 && energies[i] > 0.08) {
+          if (beats.length === 0 || timeSec - beats[beats.length - 1] >= minBeatGap) {
+            beats.push(Number(timeSec.toFixed(3)));
+          }
+        }
+      }
+      return beats;
+    }
+
+    function updateAudioUI() {
+      const buf = state.audio.audioBuffer;
+      const playBtn = document.getElementById('audioPreviewPlayBtn');
+      const removeBtn = document.getElementById('removeAudioBtn');
+      const nameEl = document.getElementById('audioTrackName');
+      const metaEl = document.getElementById('audioTrackMeta');
+      const startSlider = document.getElementById('audioStartSlider');
+      const beatBadge = document.getElementById('beatCountBadge');
+
+      if (buf) {
+        playBtn.disabled = false;
+        removeBtn.classList.remove('hidden');
+        nameEl.textContent = state.audio.fileName;
+        metaEl.textContent = `Duration: ${buf.duration.toFixed(1)}s • Sample Rate: ${buf.sampleRate}Hz`;
+        startSlider.max = Math.max(0, Math.floor(buf.duration - 2));
+        beatBadge.classList.remove('hidden');
+        beatBadge.textContent = `${state.audio.beats.length} Beats Detected`;
+        drawWaveformCanvas();
+      } else {
+        playBtn.disabled = true;
+        removeBtn.classList.add('hidden');
+        nameEl.textContent = 'No audio track selected (Silent video allowed)';
+        metaEl.textContent = 'Upload MP3/WAV or click "Built-In Bass Beat" for auto-beat sync';
+        beatBadge.classList.add('hidden');
+        clearWaveformCanvas();
+      }
+    }
+
+    function updateAudioSettings() {
+      state.audio.startOffset = parseFloat(document.getElementById('audioStartSlider').value) || 0;
+      state.audio.volume = (parseInt(document.getElementById('audioVolSlider').value, 10) || 100) / 100;
+      state.audio.fadeIn = document.getElementById('audioFadeIn').checked;
+      state.audio.fadeOut = document.getElementById('audioFadeOut').checked;
+
+      document.getElementById('audioStartVal').textContent = `${state.audio.startOffset.toFixed(1)}s`;
+      document.getElementById('audioVolVal').textContent = `${Math.round(state.audio.volume * 100)}%`;
+      if (state.audio.audioBuffer) drawWaveformCanvas();
+    }
+
+    function removeAudioTrack() {
+      stopAudioPreview();
+      state.audio.fileName = null;
+      state.audio.audioBuffer = null;
+      state.audio.beats = [];
+      state.audio.startOffset = 0;
+      updateAudioUI();
+      showToast('Audio track removed', 'info');
+    }
+
+    function toggleAudioPreview() {
+      if (state.audio.isPreviewPlaying) {
+        stopAudioPreview();
+      } else {
+        startAudioPreview();
+      }
+    }
+
+    function startAudioPreview() {
+      if (!state.audio.audioBuffer) return;
+      stopAudioPreview();
+      const ctx = getAudioContext();
+      const source = ctx.createBufferSource();
+      const gain = ctx.createGain();
+
+      source.buffer = state.audio.audioBuffer;
+      gain.gain.value = state.audio.volume;
+
+      source.connect(gain);
+      gain.connect(ctx.destination);
+
+      const offset = Math.min(state.audio.startOffset, Math.max(0, state.audio.audioBuffer.duration - 0.5));
+      source.start(0, offset);
+
+      state.audio.previewSourceNode = source;
+      state.audio.isPreviewPlaying = true;
+      document.getElementById('audioPreviewIcon').setAttribute('data-lucide', 'square');
+      lucide.createIcons({ root: document.getElementById('audioPreviewPlayBtn') });
+
+      source.onended = () => {
+        state.audio.isPreviewPlaying = false;
+        document.getElementById('audioPreviewIcon').setAttribute('data-lucide', 'play');
+        lucide.createIcons({ root: document.getElementById('audioPreviewPlayBtn') });
+      };
+    }
+
+    function stopAudioPreview() {
+      if (state.audio.previewSourceNode) {
+        try { state.audio.previewSourceNode.stop(); } catch (_) {}
+        state.audio.previewSourceNode = null;
+      }
+      state.audio.isPreviewPlaying = false;
+      const icon = document.getElementById('audioPreviewIcon');
+      if (icon) {
+        icon.setAttribute('data-lucide', 'play');
+        lucide.createIcons({ root: document.getElementById('audioPreviewPlayBtn') });
+      }
+    }
+
+    function drawWaveformCanvas() {
+      const canvas = document.getElementById('waveformCanvas');
+      const rect = canvas.getBoundingClientRect();
+      canvas.width = rect.width * (window.devicePixelRatio || 1);
+      canvas.height = rect.height * (window.devicePixelRatio || 1);
+      const ctx = canvas.getContext('2d');
+      const w = canvas.width;
+      const h = canvas.height;
+
+      ctx.clearRect(0, 0, w, h);
+      const buf = state.audio.audioBuffer;
+      if (!buf) return;
+
+      const data = buf.getChannelData(0);
+      const step = Math.ceil(data.length / w);
+      const amp = h / 2;
+
+      // Highlight selected trim window
+      const trimStartX = (state.audio.startOffset / buf.duration) * w;
+      const trimEndX = Math.min(w, ((state.audio.startOffset + state.config.duration) / buf.duration) * w);
+      ctx.fillStyle = 'rgba(139, 92, 246, 0.16)';
+      ctx.fillRect(trimStartX, 0, Math.max(4, trimEndX - trimStartX), h);
+
+      // Draw Waveform Bars
+      ctx.fillStyle = '#38BDF8';
+      for (let i = 0; i < w; i += 2) {
+        let min = 1.0, max = -1.0;
+        for (let j = 0; j < step; j++) {
+          const datum = data[i * step + j] || 0;
+          if (datum < min) min = datum;
+          if (datum > max) max = datum;
+        }
+        const barH = Math.max(2, (max - min) * amp * 0.85);
+        ctx.fillRect(i, amp - barH / 2, 1.5, barH);
+      }
+
+      // Draw Detected Beat Markers
+      ctx.fillStyle = '#F43F5E';
+      state.audio.beats.forEach(beatSec => {
+        const bx = (beatSec / buf.duration) * w;
+        ctx.fillRect(bx, 0, 1.5, h * 0.25);
+      });
+    }
+
+    function clearWaveformCanvas() {
+      const canvas = document.getElementById('waveformCanvas');
+      const ctx = canvas.getContext('2d');
+      ctx.clearRect(0, 0, canvas.width, canvas.height);
+    }
+
+    // ==================== 4. DETERMINISTIC FRAME COMPOSITION ENGINE ====================
+    /**
+     * Computes beat intensity [0..1] at timestamp `t` using either real audio beats
+     * or a synthesized 128 BPM beat grid if no audio is uploaded.
+     */
+    function getBeatPulseAtTime(t) {
+      if (!state.config.beatSync) return 0;
+
+      if (state.audio.audioBuffer && state.audio.beats.length > 0) {
+        const audioTime = t + state.audio.startOffset;
+        let minDiff = 999;
+        for (let i = 0; i < state.audio.beats.length; i++) {
+          const diff = audioTime - state.audio.beats[i];
+          if (diff >= 0 && diff < 0.28 && diff < minDiff) {
+            minDiff = diff;
+          }
+        }
+        if (minDiff < 0.28) {
+          return Math.pow(1 - minDiff / 0.28, 2.2);
+        }
+        return 0;
+      } else {
+        // Fallback 128 BPM virtual beat pulse
+        const interval = 60 / 128;
+        const phase = t % interval;
+        if (phase < 0.25) {
+          return Math.pow(1 - phase / 0.25, 2.2);
+        }
+        return 0;
+      }
+    }
+
+    function getColorFilterString(grade) {
+      switch (grade) {
+        case 'cinematic': return 'contrast(1.14) saturate(1.18) sepia(0.12) brightness(0.97)';
+        case 'cyberpunk': return 'contrast(1.25) saturate(1.45) hue-rotate(-12deg)';
+        case 'vibrant': return 'contrast(1.22) saturate(1.38) brightness(1.04)';
+        case 'moody': return 'contrast(1.3) saturate(0.75) brightness(0.88)';
+        case 'warm': return 'contrast(1.08) saturate(1.22) sepia(0.22) brightness(1.03)';
+        default: return 'none';
+      }
+    }
+
+    /**
+     * Renders a single exact frame at timestamp `t` onto `ctx` (width x height).
+     * Used identically by both Live Canvas Preview and the Final Video Encoder!
+     */
+    function renderVideoFrameAtTime(ctx, width, height, t, validPhotos) {
+      const duration = state.config.duration;
+      ctx.save();
+      ctx.fillStyle = '#07070B';
+      ctx.fillRect(0, 0, width, height);
+
+      if (!validPhotos || validPhotos.length === 0) {
+        // Empty placeholder visual for live preview before photos are uploaded
+        const grad = ctx.createLinearGradient(0, 0, width, height);
+        grad.addColorStop(0, '#131126');
+        grad.addColorStop(1, '#090B14');
+        ctx.fillStyle = grad;
+        ctx.fillRect(0, 0, width, height);
+
+        ctx.fillStyle = 'rgba(139, 92, 246, 0.2)';
+        ctx.beginPath();
+        ctx.arc(width / 2, height / 2 - 20, Math.min(width, height) * 0.16, 0, Math.PI * 2);
+        ctx.fill();
+
+        ctx.fillStyle = '#E2E8F0';
+        ctx.font = `600 ${Math.round(width * 0.042)}px Inter, sans-serif`;
+        ctx.textAlign = 'center';
+        ctx.fillText('VEXORA STUDIO AI', width / 2, height / 2 + 45);
+
+        ctx.fillStyle = '#94A3B8';
+        ctx.font = `400 ${Math.round(width * 0.028)}px Inter, sans-serif`;
+        ctx.fillText('Upload photos to preview & render', width / 2, height / 2 + 75);
+        ctx.restore();
+        return;
+      }
+
+      const photoCount = validPhotos.length;
+      const segmentDur = duration / photoCount;
+      const rawIndex = Math.min(photoCount - 1, Math.floor(t / segmentDur));
+      const localTime = t - rawIndex * segmentDur;
+      const progress = Math.min(1, Math.max(0, localTime / segmentDur)); // 0..1 within current photo
+
+      const currentPhoto = validPhotos[rawIndex].imgElement;
+      const prevPhoto = rawIndex > 0 ? validPhotos[rawIndex - 1].imgElement : null;
+
+      // Beat Pulse [0..1]
+      const pulse = getBeatPulseAtTime(t);
+
+      // Velocity Curve Easing
+      const easedProgress = state.config.velocity
+        ? (progress < 0.2 ? Math.pow(progress / 0.2, 0.5) * 0.45 : 0.45 + ((progress - 0.2) / 0.8) * 0.55)
+        : progress;
+
+      // Dynamic Zoom Calculation
+      let scale = 1.04;
+      if (state.config.zoom) {
+        const direction = rawIndex % 2 === 0 ? 1 : -1;
+        const baseZoom = direction > 0 ? (1.02 + easedProgress * 0.16) : (1.18 - easedProgress * 0.16);
+        scale = baseZoom + (pulse * 0.11);
+      } else {
+        scale = 1.02 + (pulse * 0.08);
+      }
+
+      // Camera Shake & 3D Tilt Simulation
+      let offsetX = 0;
+      let offsetY = 0;
+      let rotationRad = 0;
+
+      if (state.config.shake && pulse > 0.05) {
+        const shakeAmp = width * 0.022 * pulse;
+        offsetX = Math.sin(t * 68) * shakeAmp;
+        offsetY = Math.cos(t * 82) * shakeAmp;
+        rotationRad = Math.sin(t * 55) * 0.028 * pulse;
+      }
+
+      if (state.config.tilt3d) {
+        offsetX += Math.sin(t * 2.2 + rawIndex) * (width * 0.025);
+        offsetY += Math.cos(t * 1.8 + rawIndex) * (height * 0.018);
+        rotationRad += Math.sin(t * 1.5) * 0.02;
+        scale += 0.05;
+      }
+
+      // Apply Color Grading LUT
+      ctx.filter = getColorFilterString(state.config.colorGrade);
+
+      // Crossfade / Transition from Previous Photo during first 18% of segment
+      const transitionWindow = 0.18;
+      if (prevPhoto && progress < transitionWindow) {
+        const alpha = progress / transitionWindow;
+        drawCoverImage(ctx, prevPhoto, width, height, 1.08, 0, 0, 0, 1);
+        drawCoverImage(ctx, currentPhoto, width, height, scale * (1.15 - 0.15 * alpha), offsetX, offsetY, rotationRad, alpha);
+      } else {
+        drawCoverImage(ctx, currentPhoto, width, height, scale, offsetX, offsetY, rotationRad, 1);
+      }
+
+      ctx.filter = 'none';
+
+      // Motion Blur / Radial Ghost Echo on Strong Velocity or Beat Hits
+      if (state.config.blur && (pulse > 0.45 || progress < 0.12)) {
+        const ghostAlpha = pulse > 0.45 ? pulse * 0.25 : (1 - progress / 0.12) * 0.22;
+        drawCoverImage(ctx, currentPhoto, width, height, scale * 1.06, -offsetX * 1.3, -offsetY * 1.3, -rotationRad, ghostAlpha);
+      }
+
+      // RGB Chromatic Aberration Split on Beat Hits
+      if (state.config.rgb && pulse > 0.25) {
+        const rgbShift = width * 0.018 * pulse;
+        ctx.save();
+        ctx.globalCompositeOperation = 'screen';
+        ctx.globalAlpha = 0.38 * pulse;
+        drawCoverImage(ctx, currentPhoto, width, height, scale, offsetX + rgbShift, offsetY, rotationRad, 0.38 * pulse);
+        drawCoverImage(ctx, currentPhoto, width, height, scale, offsetX - rgbShift, offsetY, rotationRad, 0.38 * pulse);
+        ctx.restore();
+      }
+
+      // Beat Flash Overlay (White / Electric Blue strobe)
+      if (state.config.flash && pulse > 0.35) {
+        const flashAlpha = (pulse - 0.35) * 0.65;
+        ctx.fillStyle = rawIndex % 2 === 0
+          ? `rgba(255, 255, 255, ${flashAlpha})`
+          : `rgba(167, 139, 250, ${flashAlpha * 0.85})`;
+        ctx.fillRect(0, 0, width, height);
+      }
+
+      // Subtle Cinematic Vignette
+      const vignette = ctx.createRadialGradient(width / 2, height / 2, width * 0.25, width / 2, height / 2, Math.max(width, height) * 0.72);
+      vignette.addColorStop(0, 'rgba(0,0,0,0)');
+      vignette.addColorStop(1, 'rgba(0,0,0,0.42)');
+      ctx.fillStyle = vignette;
+      ctx.fillRect(0, 0, width, height);
+
+      // Optional Custom Text Overlay
+      if (state.config.textOverlay && state.config.textOverlay.trim() !== '') {
+        ctx.save();
+        const fontSize = Math.round(width * 0.048);
+        ctx.font = `800 ${fontSize}px "Space Grotesk", Inter, sans-serif`;
+        ctx.textAlign = 'center';
+        ctx.shadowColor = 'rgba(0, 0, 0, 0.85)';
+        ctx.shadowBlur = 14;
+        ctx.fillStyle = '#FFFFFF';
+        const textScale = 1 + pulse * 0.06;
+        ctx.translate(width / 2, height * 0.86);
+        ctx.scale(textScale, textScale);
+        ctx.fillText(state.config.textOverlay.trim().toUpperCase(), 0, 0);
+        ctx.restore();
+      }
+
+      ctx.restore();
+    }
+
+    function drawCoverImage(ctx, img, targetW, targetH, scale, offsetX, offsetY, rotationRad, alpha) {
+      if (!img || !img.width || !img.height) return;
+      ctx.save();
+      ctx.globalAlpha = Math.max(0, Math.min(1, alpha));
+      ctx.translate(targetW / 2 + offsetX, targetH / 2 + offsetY);
+      ctx.rotate(rotationRad);
+      ctx.scale(scale, scale);
+
+      const imgRatio = img.width / img.height;
+      const targetRatio = targetW / targetH;
+      let drawW, drawH;
+
+      if (imgRatio > targetRatio) {
+        drawH = targetH;
+        drawW = targetH * imgRatio;
+      } else {
+        drawW = targetW;
+        drawH = targetW / imgRatio;
+      }
+
+      ctx.drawImage(img, -drawW / 2, -drawH / 2, drawW, drawH);
+      ctx.restore();
+    }
+
+    // ==================== LIVE PREVIEW LOOP ====================
+    function startLivePreviewLoop() {
+      const canvas = document.getElementById('livePreviewCanvas');
+      const ctx = canvas.getContext('2d');
+
+      function tick(now) {
+        if (state.livePreview.mode === 'live' && !state.render.isRendering) {
+          const { width, height } = getOutputDimensions();
+          // Keep live preview crisp but lightweight (max 540p internal preview)
+          const previewScale = Math.min(1, 540 / Math.max(width, height));
+          const pw = Math.round(width * previewScale);
+          const ph = Math.round(height * previewScale);
+
+          if (canvas.width !== pw || canvas.height !== ph) {
+            canvas.width = pw;
+            canvas.height = ph;
+          }
+
+          if (state.livePreview.isPlaying) {
+            const elapsed = ((now - state.livePreview.startTime) / 1000) % state.config.duration;
+            const validPhotos = state.photos.filter(Boolean);
+            renderVideoFrameAtTime(ctx, pw, ph, elapsed, validPhotos);
+          }
+        }
+        state.livePreview.rafId = requestAnimationFrame(tick);
+      }
+
+      state.livePreview.rafId = requestAnimationFrame(tick);
+    }
+
+    function toggleLiveCanvasPlayback() {
+      state.livePreview.isPlaying = !state.livePreview.isPlaying;
+      if (state.livePreview.isPlaying) {
+        state.livePreview.startTime = performance.now();
+      }
+      document.getElementById('livePreviewBtnText').textContent = state.livePreview.isPlaying ? 'Pause Live Preview' : 'Resume Live Preview';
+      document.getElementById('livePreviewIcon').setAttribute('data-lucide', state.livePreview.isPlaying ? 'pause' : 'play');
+      lucide.createIcons({ root: document.getElementById('livePreviewToggleBtn') });
+    }
+
+    function switchMonitorMode(mode) {
+      state.livePreview.mode = mode;
+      const liveCanvas = document.getElementById('livePreviewCanvas');
+      const liveBtn = document.getElementById('livePreviewToggleBtn');
+      const videoEl = document.getElementById('finalVideoPlayer');
+      const videoCtrls = document.getElementById('finalVideoControls');
+      const backBtn = document.getElementById('backToLiveBtn');
+      const title = document.getElementById('monitorTitle');
+
+      if (mode === 'final') {
+        liveCanvas.classList.add('hidden');
+        liveBtn.classList.add('hidden');
+        videoEl.classList.remove('hidden');
+        videoCtrls.classList.remove('hidden');
+        backBtn.classList.remove('hidden');
+        title.textContent = 'Rendered MP4 Master Preview';
+      } else {
+        videoEl.pause();
+        videoEl.classList.add('hidden');
+        videoCtrls.classList.add('hidden');
+        backBtn.classList.add('hidden');
+        liveCanvas.classList.remove('hidden');
+        liveBtn.classList.remove('hidden');
+        title.textContent = 'Live Studio Preview';
+      }
+    }
+
+    // ==================== 5. REAL VIDEO RENDERING PIPELINE (H.264 MP4 + FALLBACK) ====================
+    async function startRealVideoRender() {
+      const validPhotos = state.photos.filter(Boolean);
+      if (validPhotos.length < state.slotCount) {
+        showToast(`Please upload all ${state.slotCount} photos first.`, 'warning');
+        return;
+      }
+      if (state.render.isRendering) return;
+
+      stopAudioPreview();
+      state.render.isRendering = true;
+
+      // UI Setup
+      const genBtn = document.getElementById('generateVideoBtn');
+      const dlBtn = document.getElementById('downloadVideoBtn');
+      const progPanel = document.getElementById('renderProgressPanel');
+      const errPanel = document.getElementById('renderErrorPanel');
+
+      genBtn.disabled = true;
+      dlBtn.classList.add('hidden');
+      errPanel.classList.add('hidden');
+      progPanel.classList.remove('hidden');
+
+      const { width, height } = getOutputDimensions();
+      const fps = state.config.fps;
+      const duration = state.config.duration;
+      const totalFrames = Math.ceil(duration * fps);
+      const bitrate = parseInt(state.settings.bitrate, 10) || 8000000;
+
+      const renderCanvas = document.createElement('canvas');
+      renderCanvas.width = width;
+      renderCanvas.height = height;
+      const renderCtx = renderCanvas.getContext('2d', { alpha: false });
+
+      const startTime = performance.now();
+
+      try {
+        const supportsWebCodecs = typeof VideoEncoder !== 'undefined' && typeof Mp4Muxer !== 'undefined';
+        let outputBlob = null;
+        let extension = 'mp4';
+
+        if (supportsWebCodecs) {
+          // Verify H.264 codec support on this device
+          const codecConfig = {
+            codec: width * height > 921600 ? 'avc1.4d002a' : 'avc1.42001f',
+            width,
+            height,
+            bitrate,
+            framerate: fps
+          };
+          const supportCheck = await VideoEncoder.isConfigSupported(codecConfig);
+
+          if (supportCheck.supported) {
+            outputBlob = await renderWithWebCodecsMP4(renderCanvas, renderCtx, validPhotos, width, height, fps, duration, totalFrames, codecConfig, startTime);
+            extension = 'mp4';
+          } else {
+            outputBlob = await renderWithMediaRecorderFallback(renderCanvas, renderCtx, validPhotos, width, height, fps, duration, totalFrames, bitrate, startTime);
+            extension = 'webm';
+          }
+        } else {
+          outputBlob = await renderWithMediaRecorderFallback(renderCanvas, renderCtx, validPhotos, width, height, fps, duration, totalFrames, bitrate, startTime);
+          extension = 'webm';
+        }
+
+        if (!outputBlob || outputBlob.size < 1024) {
+          throw new Error('Rendered file is empty. Your device may have run out of graphics memory. Try 720p or 540p in Settings.');
+        }
+
+        // Revoke previous output URL
+        if (state.render.outputBlobUrl) {
+          URL.revokeObjectURL(state.render.outputBlobUrl);
+        }
+
+        const blobUrl = URL.createObjectURL(outputBlob);
+        state.render.outputBlobUrl = blobUrl;
+        state.render.outputExtension = extension;
+
+        // Increment render counter
+        state.render.renderCount++;
+        localStorage.setItem('vexora_render_count', String(state.render.renderCount));
+
+        // Bind to Final Video Player
+        const videoEl = document.getElementById('finalVideoPlayer');
+        videoEl.src = blobUrl;
+        videoEl.load();
+
+        // Bind Download Button
+        const timestamp = new Date().toISOString().slice(0, 19).replace(/[:T]/g, '-');
+        dlBtn.href = blobUrl;
+        dlBtn.download = `VEXORA_STUDIO_AI_${timestamp}.${extension}`;
+        document.getElementById('downloadBtnLabel').textContent = `Download Rendered Video (.${extension.toUpperCase()})`;
+        document.getElementById('renderedFileSizeBadge').textContent = `${(outputBlob.size / (1024 * 1024)).toFixed(2)} MB`;
+
+        progPanel.classList.add('hidden');
+        dlBtn.classList.remove('hidden');
+        switchMonitorMode('final');
+        setupFinalVideoPlayerEvents();
+
+        showToast(`Video rendered successfully (${(outputBlob.size / (1024 * 1024)).toFixed(2)} MB)!`, 'success');
+      } catch (err) {
+        console.error('VEXORA Render Error:', err);
+        progPanel.classList.add('hidden');
+        errPanel.classList.remove('hidden');
+        document.getElementById('renderErrorText').textContent = err.message || 'Unexpected rendering error occurred.';
+        showToast('Video rendering failed. See error details.', 'error');
+      } finally {
+        state.render.isRendering = false;
+        genBtn.disabled = false;
+      }
+    }
+
+    /**
+     * PRIMARY ENGINE: Hardware-accelerated H.264 + AAC MP4 Muxing via WebCodecs
+     */
+    async function renderWithWebCodecsMP4(canvas, ctx, validPhotos, width, height, fps, duration, totalFrames, codecConfig, startTime) {
+      const hasAudio = Boolean(state.audio.audioBuffer);
+      const sampleRate = hasAudio ? state.audio.audioBuffer.sampleRate : 44100;
+      const numberOfChannels = hasAudio ? Math.min(2, state.audio.audioBuffer.numberOfChannels) : 2;
+
+      let audioEncoderSupported = false;
+      if (hasAudio && typeof AudioEncoder !== 'undefined') {
+        const aCheck = await AudioEncoder.isConfigSupported({
+          codec: 'mp4a.40.2',
+          sampleRate,
+          numberOfChannels,
+          bitrate: 128000
+        });
+        audioEncoderSupported = aCheck.supported;
+      }
+
+      const muxerOptions = {
+        target: new Mp4Muxer.ArrayBufferTarget(),
+        video: {
+          codec: 'avc',
+          width,
+          height
+        },
+        fastStart: 'in-memory'
+      };
+
+      if (hasAudio && audioEncoderSupported) {
+        muxerOptions.audio = {
+          codec: 'aac',
+          numberOfChannels,
+          sampleRate
+        };
+      }
+
+      const muxer = new Mp4Muxer.Muxer(muxerOptions);
+
+      let encoderError = null;
+      const videoEncoder = new VideoEncoder({
+        output: (chunk, meta) => muxer.addVideoChunk(chunk, meta),
+        error: (e) => { encoderError = e; }
+      });
+      videoEncoder.configure(codecConfig);
+
+      // Encode Audio Track First if present & supported
+      if (hasAudio && audioEncoderSupported) {
+        updateRenderProgressUI(2, 0, totalFrames, 'Encoding AAC Audio Track...', 'Preparing...');
+        const audioEncoder = new AudioEncoder({
+          output: (chunk, meta) => muxer.addAudioChunk(chunk, meta),
+          error: (e) => { encoderError = e; }
+        });
+        audioEncoder.configure({
+          codec: 'mp4a.40.2',
+          sampleRate,
+          numberOfChannels,
+          bitrate: 128000
+        });
+
+        const totalSamples = Math.floor(duration * sampleRate);
+        const startSampleOffset = Math.floor(state.audio.startOffset * sampleRate);
+        const srcBuf = state.audio.audioBuffer;
+        const chunkSamples = 4096;
+
+        for (let offset = 0; offset < totalSamples; offset += chunkSamples) {
+          const count = Math.min(chunkSamples, totalSamples - offset);
+          const planarData = new Float32Array(count * numberOfChannels);
+
+          for (let ch = 0; ch < numberOfChannels; ch++) {
+            const channelData = srcBuf.getChannelData(Math.min(ch, srcBuf.numberOfChannels - 1));
+            for (let i = 0; i < count; i++) {
+              const globalSample = offset + i;
+              const tSec = globalSample / sampleRate;
+              const srcIdx = (startSampleOffset + globalSample) % channelData.length;
+
+              // Apply Volume, Fade In (1.2s) & Fade Out (1.5s)
+              let gain = state.audio.volume;
+              if (state.audio.fadeIn && tSec < 1.2) gain *= (tSec / 1.2);
+              if (state.audio.fadeOut && tSec > duration - 1.5) gain *= Math.max(0, (duration - tSec) / 1.5);
+
+              planarData[ch * count + i] = Math.max(-1, Math.min(1, channelData[srcIdx] * gain));
+            }
+          }
+
+          const audioData = new AudioData({
+            format: 'f32-planar',
+            sampleRate,
+            numberOfFrames: count,
+            numberOfChannels,
+            timestamp: Math.round((offset / sampleRate) * 1_000_000),
+            data: planarData
+          });
+          audioEncoder.encode(audioData);
+          audioData.close();
+        }
+
+        await audioEncoder.flush();
+        audioEncoder.close();
+      }
+
+      // Render & Encode Video Frames Deterministically
+      const frameDurationUs = Math.round(1_000_000 / fps);
+
+      for (let frameIdx = 0; frameIdx < totalFrames; frameIdx++) {
+        if (encoderError) throw encoderError;
+
+        const t = frameIdx / fps;
+        renderVideoFrameAtTime(ctx, width, height, t, validPhotos);
+
+        const videoFrame = new VideoFrame(canvas, {
+          timestamp: frameIdx * frameDurationUs,
+          duration: frameDurationUs
+        });
+
+        const keyFrame = frameIdx % (fps * 2) === 0;
+        videoEncoder.encode(videoFrame, { keyFrame });
+        videoFrame.close();
+
+        // Prevent encoder queue overflow & keep UI responsive on mobile
+        if (videoEncoder.encodeQueueSize > 8) {
+          await videoEncoder.flush();
+        }
+        if (frameIdx % 4 === 0) {
+          const pct = Math.min(98, Math.round((frameIdx / totalFrames) * 100));
+          const elapsedSec = (performance.now() - startTime) / 1000;
+          const fpsSpeed = (frameIdx + 1) / Math.max(0.1, elapsedSec);
+          const etaSec = Math.max(0, Math.round((totalFrames - frameIdx) / Math.max(1, fpsSpeed)));
+          updateRenderProgressUI(pct, frameIdx + 1, totalFrames, 'Rendering H.264 MP4 Frames...', `~${etaSec}s remaining`);
+          await new Promise(r => setTimeout(r, 0));
+        }
+      }
+
+      updateRenderProgressUI(99, totalFrames, totalFrames, 'Finalizing MP4 Container...', 'Almost done...');
+      await videoEncoder.flush();
+      videoEncoder.close();
+      muxer.finalize();
+
+      return new Blob([muxer.target.buffer], { type: 'video/mp4' });
+    }
+
+    /**
+     * FALLBACK ENGINE: Real-time MediaRecorder captureStream for browsers without WebCodecs
+     */
+    async function renderWithMediaRecorderFallback(canvas, ctx, validPhotos, width, height, fps, duration, totalFrames, bitrate, startTime) {
+      const stream = canvas.captureStream(fps);
+      let audioCtx = null;
+      let audioSource = null;
+
+      if (state.audio.audioBuffer) {
+        audioCtx = getAudioContext();
+        const dest = audioCtx.createMediaStreamDestination();
+        audioSource = audioCtx.createBufferSource();
+        const gainNode = audioCtx.createGain();
+
+        audioSource.buffer = state.audio.audioBuffer;
+        audioSource.loop = true;
+
+        const now = audioCtx.currentTime;
+        gainNode.gain.setValueAtTime(state.audio.fadeIn ? 0.01 : state.audio.volume, now);
+        if (state.audio.fadeIn) {
+          gainNode.gain.linearRampToValueAtTime(state.audio.volume, now + Math.min(1.2, duration * 0.3));
+        }
+        if (state.audio.fadeOut && duration > 1.5) {
+          gainNode.gain.setValueAtTime(state.audio.volume, now + duration - 1.5);
+          gainNode.gain.linearRampToValueAtTime(0.01, now + duration);
+        }
+
+        audioSource.connect(gainNode);
+        gainNode.connect(dest);
+        dest.stream.getAudioTracks().forEach(track => stream.addTrack(track));
+      }
+
+      const mimeCandidates = [
+        'video/mp4;codecs=avc1',
+        'video/webm;codecs=vp9,opus',
+        'video/webm;codecs=vp8,opus',
+        'video/webm'
+      ];
+      const mimeType = mimeCandidates.find(m => MediaRecorder.isTypeSupported(m)) || '';
+      const recorder = new MediaRecorder(stream, mimeType ? { mimeType, videoBitsPerSecond: bitrate } : undefined);
+      const chunks = [];
+
+      recorder.ondataavailable = (e) => {
+        if (e.data && e.data.size > 0) chunks.push(e.data);
+      };
+
+      const stoppedPromise = new Promise(resolve => {
+        recorder.onstop = () => resolve();
+      });
+
+      recorder.start(200);
+      if (audioSource) {
+        const offset = Math.min(state.audio.startOffset, Math.max(0, state.audio.audioBuffer.duration - 0.5));
+        audioSource.start(0, offset);
+      }
+
+      const renderStart = performance.now();
+      for (let frameIdx = 0; frameIdx < totalFrames; frameIdx++) {
+        const targetElapsed = (frameIdx / fps) * 1000;
+        const actualElapsed = performance.now() - renderStart;
+        if (targetElapsed > actualElapsed) {
+          await new Promise(r => setTimeout(r, targetElapsed - actualElapsed));
+        }
+
+        const t = frameIdx / fps;
+        renderVideoFrameAtTime(ctx, width, height, t, validPhotos);
+
+        if (frameIdx % 5 === 0) {
+          const pct = Math.min(99, Math.round((frameIdx / totalFrames) * 100));
+          const eta = Math.max(0, Math.ceil(duration - t));
+          updateRenderProgressUI(pct, frameIdx + 1, totalFrames, 'Recording Video Stream...', `~${eta}s remaining`);
+        }
+      }
+
+      if (audioSource) {
+        try { audioSource.stop(); } catch (_) {}
+      }
+      recorder.stop();
+      await stoppedPromise;
+
+      return new Blob(chunks, { type: mimeType || 'video/webm' });
+    }
+
+    function updateRenderProgressUI(percent, currentFrame, totalFrames, statusText, etaText) {
+      document.getElementById('renderProgressBar').style.width = `${percent}%`;
+      document.getElementById('renderPercentText').textContent = `${percent}%`;
+      document.getElementById('renderStatusLabel').innerHTML = `<span class="w-2 h-2 rounded-full bg-purple-400 animate-ping"></span>${statusText}`;
+      document.getElementById('renderFrameDetail').textContent = `Frame ${currentFrame} / ${totalFrames}`;
+      document.getElementById('renderEtaText').textContent = etaText;
+    }
+
+    // ==================== 6. FINAL VIDEO PLAYER CONTROLS ====================
+    function setupFinalVideoPlayerEvents() {
+      const video = document.getElementById('finalVideoPlayer');
+      const timeline = document.getElementById('videoTimelineSlider');
+      const curTimeEl = document.getElementById('videoCurrentTime');
+      const totTimeEl = document.getElementById('videoTotalTime');
+
+      video.onloadedmetadata = () => {
+        const dur = isFinite(video.duration) ? video.duration : state.config.duration;
+        timeline.max = dur;
+        totTimeEl.textContent = formatTimeMMSS(dur);
+        video.play().catch(() => {});
+      };
+
+      video.ontimeupdate = () => {
+        timeline.value = video.currentTime;
+        curTimeEl.textContent = formatTimeMMSS(video.currentTime);
+      };
+
+      video.onplay = () => updateFinalPlayIcon(true);
+      video.onpause = () => updateFinalPlayIcon(false);
+      video.onended = () => updateFinalPlayIcon(false);
+    }
+
+    function updateFinalPlayIcon(isPlaying) {
+      const icon = document.getElementById('finalPlayIcon');
+      icon.setAttribute('data-lucide', isPlaying ? 'pause' : 'play');
+      lucide.createIcons({ root: icon.parentElement });
+    }
+
+    function toggleFinalVideoPlay() {
+      const video = document.getElementById('finalVideoPlayer');
+      if (video.paused) video.play();
+      else video.pause();
+    }
+
+    function seekFinalVideo(val) {
+      const video = document.getElementById('finalVideoPlayer');
+      video.currentTime = parseFloat(val);
+    }
+
+    function toggleFinalVideoMute() {
+      const video = document.getElementById('finalVideoPlayer');
+      video.muted = !video.muted;
+      const icon = document.getElementById('finalMuteIcon');
+      icon.setAttribute('data-lucide', video.muted ? 'volume-x' : 'volume-2');
+      lucide.createIcons({ root: icon.parentElement });
+    }
+
+    function changeFinalVideoVolume(val) {
+      const video = document.getElementById('finalVideoPlayer');
+      video.volume = parseFloat(val);
+      video.muted = video.volume === 0;
+    }
+
+    function fullscreenFinalVideo() {
+      const video = document.getElementById('finalVideoPlayer');
+      if (video.requestFullscreen) video.requestFullscreen();
+      else if (video.webkitEnterFullscreen) video.webkitEnterFullscreen();
+    }
+
+    function formatTimeMMSS(sec) {
+      if (!isFinite(sec) || sec < 0) return '00:00';
+      const m = Math.floor(sec / 60);
+      const s = Math.floor(sec % 60);
+      return `${String(m).padStart(2, '0')}:${String(s).padStart(2, '0')}`;
+    }
+
+    // ==================== 7. DEMO KIT GENERATOR (REAL CANVAS IMAGES + BEAT) ====================
+    async function loadDemoSample() {
+      showToast('Generating 5 high-res cyber studio sample photos & beat...', 'info');
+      const count = 5;
+      initPhotoSlots(count);
+
+      const palettes = [
+        ['#4C1D95', '#2563EB', 'VEXORA 01'],
+        ['#831843', '#7C3AED', 'CYBER BEAT 02'],
+        ['#0F766E', '#1D4ED8', 'VELOCITY 03'],
+        ['#581C87', '#DB2777', 'NEON PULSE 04'],
+        ['#1E1B4B', '#0284C7', 'FINALE 05']
+      ];
+
+      for (let i = 0; i < count; i++) {
+        const c = document.createElement('canvas');
+        c.width = 720;
+        c.height = 1280;
+        const ctx = c.getContext('2d');
+
+        const [c1, c2, label] = palettes[i];
+        const grad = ctx.createLinearGradient(0, 0, c.width, c.height);
+        grad.addColorStop(0, c1);
+        grad.addColorStop(1, c2);
+        ctx.fillStyle = grad;
+        ctx.fillRect(0, 0, c.width, c.height);
+
+        // Futuristic geometric rings
+        ctx.strokeStyle = 'rgba(255,255,255,0.22)';
+        ctx.lineWidth = 8;
+        ctx.beginPath();
+        ctx.arc(c.width / 2, c.height * 0.45, 190 + i * 18, 0, Math.PI * 2);
+        ctx.stroke();
+
+        ctx.fillStyle = 'rgba(255,255,255,0.12)';
+        ctx.fillRect(60, c.height * 0.65, c.width - 120, 180);
+
+        ctx.fillStyle = '#FFFFFF';
+        ctx.font = '800 54px "Space Grotesk", sans-serif';
+        ctx.textAlign = 'center';
+        ctx.fillText(label, c.width / 2, c.height * 0.72);
+
+        ctx.fillStyle = '#CBD5E1';
+        ctx.font = '500 28px Inter, sans-serif';
+        ctx.fillText(`SCENE #${i + 1} • BEAT SYNC READY`, c.width / 2, c.height * 0.76);
+
+        const dataUrl = c.toDataURL('image/jpeg', 0.92);
+        const img = new Image();
+        await new Promise(res => {
+          img.onload = res;
+          img.src = dataUrl;
+        });
+
+        state.photos[i] = {
+          id: 'demo_' + i,
+          url: dataUrl,
+          imgElement: img,
+          name: `Demo_Scene_${i + 1}.jpg`
+        };
+      }
+
+      renderPhotoSlots();
+      generateBuiltInBeatTrack();
+      showToast('Demo Kit loaded! Click "Generate Real Video" to render MP4.', 'success');
+    }
+
+    // ==================== 8. PERSISTENT PROJECT SYSTEM ====================
+    function getSavedProjects() {
+      try {
+        return JSON.parse(localStorage.getItem('vexora_projects_v1') || '[]');
+      } catch {
+        return [];
+      }
+    }
+
+    function saveCurrentProject() {
+      const projects = getSavedProjects();
+      const styleObj = VIDEO_STYLES.find(s => s.id === state.config.styleId);
+      const project = {
+        id: 'proj_' + Date.now(),
+        title: `${styleObj ? styleObj.name : 'Custom'} (${state.slotCount} Photos • ${state.config.duration}s)`,
+        createdAt: new Date().toLocaleString(),
+        slotCount: state.slotCount,
+        config: { ...state.config }
+      };
+
+      projects.unshift(project);
+      localStorage.setItem('vexora_projects_v1', JSON.stringify(projects.slice(0, 30)));
+      updateProfileStats();
+      showToast('Project prompt & editing configuration saved!', 'success');
+    }
+
+    function loadSavedProjectsList() {
+      const projects = getSavedProjects();
+      const grid = document.getElementById('projectsGrid');
+      if (!grid) return;
+
+      if (projects.length === 0) {
+        grid.innerHTML = `
+          <div class="col-span-full glass-panel rounded-2xl p-10 text-center space-y-3">
+            <i data-lucide="folder-open" class="w-10 h-10 text-slate-500 mx-auto"></i>
+            <div class="text-base font-semibold text-slate-200">No Saved Projects Yet</div>
+            <p class="text-xs text-slate-400 max-w-md mx-auto">Configure a video prompt and style in the Studio, then click "Save Project" to store it here.</p>
+          </div>
+        `;
+        lucide.createIcons({ root: grid });
+        return;
+      }
+
+      grid.innerHTML = projects.map(p => `
+        <div class="glass-card rounded-2xl p-5 flex flex-col justify-between space-y-4">
+          <div class="space-y-2">
+            <div class="flex items-center justify-between gap-2">
+              <span class="px-2.5 py-0.5 rounded-md bg-purple-500/20 text-purple-300 text-xs font-semibold">${p.config.aspectRatio}</span>
+              <span class="text-[11px] text-slate-400">${p.createdAt}</span>
+            </div>
+            <h3 class="font-display font-bold text-base text-white">${p.title}</h3>
+            <p class="text-xs text-slate-300 line-clamp-3 bg-void/60 p-2.5 rounded-xl border border-white/5">"${p.config.prompt || 'No prompt text'}"</p>
+          </div>
+          <div class="flex items-center gap-2 pt-2">
+            <button onclick="openSavedProject('${p.id}')" class="flex-1 btn-primary py-2 rounded-xl text-xs font-semibold text-white">Open in Studio</button>
+            <button onclick="deleteSavedProject('${p.id}')" class="p-2 rounded-xl bg-rose-500/15 hover:bg-rose-500/25 text-rose-300 transition" title="Delete Project">
+              <i data-lucide="trash-2" class="w-4 h-4"></i>
+            </button>
+          </div>
+        </div>
+      `).join('');
+      lucide.createIcons({ root: grid });
+    }
+
+    function openSavedProject(id) {
+      const project = getSavedProjects().find(p => p.id === id);
+      if (!project) return;
+
+      state.config = { ...state.config, ...project.config };
+      document.getElementById('videoPromptInput').value = state.config.prompt || '';
+      initPhotoSlots(project.slotCount || 5);
+      syncUIFromConfig();
+      renderStyleGrid();
+      renderCompiledTags();
+      updateResolutionBadge();
+      navigateTo('create');
+      showToast('Project configuration loaded. Upload photos to render.', 'success');
+    }
+
+    function deleteSavedProject(id) {
+      const filtered = getSavedProjects().filter(p => p.id !== id);
+      localStorage.setItem('vexora_projects_v1', JSON.stringify(filtered));
+      loadSavedProjectsList();
+      updateProfileStats();
+      showToast('Project deleted', 'info');
+    }
+
+    // ==================== 9. TEMPLATES GALLERY & SETTINGS ====================
+    function renderTemplatesGallery() {
+      const templates = [
+        {
+          title: 'Viral Indo Jedag Jedug 2026',
+          badge: '9:16 TikTok / Reels',
+          photos: 6,
+          prompt: 'Create a 15-second aggressive Indonesian jedag-jedug edit with velocity transitions, beat sync, smooth zoom, camera shake, RGB flash, vibrant color grading and professional transitions. Use all uploaded photos in the correct order.'
+        },
+        {
+          title: 'Tokyo Drift Velocity AMV',
+          badge: '9:16 High Energy',
+          photos: 8,
+          prompt: 'Create a 16-second Anime AMV velocity edit with beat sync, chromatic RGB split, white flash impacts, motion blur, and cyberpunk color grading.'
+        },
+        {
+          title: 'Cinematic Travel Documentary',
+          badge: '16:9 YouTube',
+          photos: 5,
+          prompt: 'Create a 20-second 16:9 cinematic travel film with slow smooth zoom, gentle dissolves, no shake, no flash, and cinematic teal and orange color grading.'
+        },
+        {
+          title: '3D Parallax Luxury Showcase',
+          badge: '1:1 Instagram',
+          photos: 5,
+          prompt: 'Create a 15-second 1:1 3D photo motion showcase with smooth depth tilt, beat sync, and golden hour warm color grading.'
+        },
+        {
+          title: 'Cyberpunk Glitch Montage',
+          badge: '16:9 Gaming',
+          photos: 7,
+          prompt: 'Create a 14-second 16:9 gaming montage glitch edit with aggressive camera shake, RGB split, beat flash, and dark moody color grading.'
+        },
+        {
+          title: 'Aesthetic Slow Motion Memories',
+          badge: '9:16 Stories',
+          photos: 4,
+          prompt: 'Create a 12-second 9:16 slow motion aesthetic memory edit with smooth zoom, motion blur, and warm film color grading.'
+        }
+      ];
+
+      const grid = document.getElementById('templatesGalleryGrid');
+      grid.innerHTML = templates.map((tpl, i) => `
+        <div class="glass-card rounded-2xl p-5 flex flex-col justify-between space-y-4">
+          <div class="space-y-2">
+            <div class="flex items-center justify-between">
+              <span class="px-2.5 py-0.5 rounded-md bg-blue-500/20 text-blue-300 text-xs font-semibold">${tpl.badge}</span>
+              <span class="text-xs text-slate-400">${tpl.photos} Photos</span>
+            </div>
+            <h3 class="font-display font-bold text-lg text-white">${tpl.title}</h3>
+            <p class="text-xs text-slate-300 leading-relaxed">"${tpl.prompt}"</p>
+          </div>
+          <button onclick='useTemplatePreset(${JSON.stringify(tpl)})' class="w-full btn-primary py-2.5 rounded-xl text-xs font-semibold text-white flex items-center justify-center gap-1.5">
+            <i data-lucide="wand-2" class="w-4 h-4"></i>
+            <span>Use This Template</span>
+          </button>
+        </div>
+      `).join('');
+      lucide.createIcons({ root: grid });
+    }
+
+    function useTemplatePreset(tpl) {
+      document.getElementById('videoPromptInput').value = tpl.prompt;
+      initPhotoSlots(tpl.photos);
+      parsePromptAndSyncUI(false);
+      navigateTo('create');
+      showToast(`Loaded "${tpl.title}" into Studio!`, 'success');
+    }
+
+    function saveStudioSettings() {
+      state.settings.resolution = document.getElementById('settingResolution').value;
+      state.settings.bitrate = parseInt(document.getElementById('settingBitrate').value, 10);
+      updateResolutionBadge();
+      showToast('Render quality settings updated', 'success');
+    }
+
+    function updateProfileStats() {
+      const pCount = document.getElementById('statProjectsCount');
+      const rCount = document.getElementById('statRendersCount');
+      if (pCount) pCount.textContent = String(getSavedProjects().length);
+      if (rCount) rCount.textContent = String(state.render.renderCount);
+    }
+  </script>
+</body>
+</html>
